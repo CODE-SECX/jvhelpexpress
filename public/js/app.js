@@ -56,7 +56,7 @@ async function loadMultilingualContent(table, language = 'en') {
 }
 
 // Switch language globally
-async function switchLanguageGlobally(newLanguage) {
+function switchLanguageGlobally(newLanguage) {
     currentLanguage = newLanguage;
     
     // Update hero content
@@ -66,18 +66,18 @@ async function switchLanguageGlobally(newLanguage) {
             contentCache.hero[newLanguage].subtitle
         );
     } else {
-        await loadHeroContent(newLanguage);
+        loadHeroContent(newLanguage);
     }
     
     // Update other content sections
-    await updateAllContentSections(newLanguage);
+    updateAllContentSections(newLanguage);
     
     // Update language switcher display
     updateLanguageDisplay(newLanguage);
 }
 
 // Update all content sections with new language
-async function updateAllContentSections(language) {
+function updateAllContentSections(language) {
     // Update static translations using existing translation system
     const existingTranslations = {
         'hi': {
@@ -549,10 +549,11 @@ document.addEventListener('DOMContentLoaded', function () {
             // Show animation feedback
             languageToggle.classList.add('pulse');
             setTimeout(() => {
-            }
-            )
+                languageToggle.classList.remove('pulse');
+            }, 1000);
+            
             // Use the global language switching function
-            await switchLanguageGlobally(language);
+            switchLanguageGlobally(language);
         });
     });
 
