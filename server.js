@@ -12,10 +12,11 @@ app.use(cors());
 app.use(express.json());
 
 // Serve static files with proper paths for Vercel
-app.use('/css', express.static(path.join(__dirname, 'public/css')));
-app.use('/js', express.static(path.join(__dirname, 'public/js')));
-app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files - Vercel handles this via routes in vercel.json
+app.use(express.static('public'));
+app.use('/css', express.static('public/css'));
+app.use('/js', express.static('public/js'));
+app.use('/assets', express.static('public/assets'));
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;

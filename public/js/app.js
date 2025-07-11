@@ -74,6 +74,9 @@ function switchLanguageGlobally(newLanguage) {
     
     // Update language switcher display
     updateLanguageDisplay(newLanguage);
+    
+    // Load products in new language
+    loadProducts(newLanguage);
 }
 
 // Update all content sections with new language
@@ -157,6 +160,158 @@ function updateLanguageDisplay(language) {
     }
 }
 
+// Load products from API
+async function loadProducts(language = 'en') {
+    try {
+        const response = await fetch(`/api/content/products?lang=${language}`);
+        const result = await response.json();
+        
+        if (result.error) {
+            console.warn('Failed to load products:', result.error);
+            return;
+        }
+        
+        // Cache the products
+        contentCache.products = result.data;
+        
+        // Update products display
+        updateProductsDisplay(result.data);
+    } catch (error) {
+        console.error('Failed to load products:', error);
+    }
+}
+
+// Update products display in DOM
+function updateProductsDisplay(products) {
+    const productsGrid = document.querySelector('.products-grid');
+    if (!productsGrid) return;
+    
+    // Clear existing products
+    productsGrid.innerHTML = '';
+    
+    // Create product cards
+    products.forEach((product, index) => {
+        const productCard = createProductCard(product, index + 1);
+        productsGrid.appendChild(productCard);
+    });
+}
+
+// Create a product card element
+function createProductCard(product, index) {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    card.onclick = () => openModal(`product${index}`);
+    
+    // Parse colors if it's a JSON string
+    let colors = [];
+    try {
+        colors = typeof product.colors === 'string' ? JSON.parse(product.colors) : (product.colors || []);
+    } catch (e) {
+        colors = [];
+    }
+    
+    card.innerHTML = `
+        <img src="${product.image_url || 'https://via.placeholder.com/300x250'}" 
+             alt="${product.name}" 
+             class="product-image">
+        <div class="product-info">
+            <div class="product-name">${product.name}</div>
+            <div class="product-price">₹${product.price}</div>
+            <div class="product-category">${product.category}</div>
+            <div class="product-description-short">${product.short_description}</div>
+            <button class="view-more-btn">View More</button>
+        </div>
+    `;
+    
+    // Create and append modal
+    const modal = createProductModal(product, index, colors);
+    document.body.appendChild(modal);
+    
+    return card;
+}
+
+// Create product modal
+function createProductModal(product, index, colors) {
+    const modal = document.createElement('div');
+    modal.id = `product${index}Modal`;
+    modal.className = 'modal';
+    
+    // Create color options HTML
+    const colorOptionsHTML = colors.map(color => 
+        `<div class="color-option" style="background-color: ${color};" onclick="selectColor(this)"></div>`
+    ).join('');
+    
+    // Create dimensions HTML
+    const dimensionsHTML = `
+        ${product.height_cm ? `
+            <div class="dimension-item">
+                <div class="dimension-label">Height</div>
+                <div class="dimension-value">${product.height_cm} cm</div>
+            </div>
+        ` : ''}
+        ${product.width_cm ? `
+            <div class="dimension-item">
+                <div class="dimension-label">Width</div>
+                <div class="dimension-value">${product.width_cm} cm</div>
+            </div>
+        ` : ''}
+        ${product.volume_ml ? `
+            <div class="dimension-item">
+                <div class="dimension-label">Volume</div>
+                <div class="dimension-value">${product.volume_ml} ml</div>
+            </div>
+        ` : ''}
+    `;
+    
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Product Details</h2>
+                <button class="close" onclick="closeModal('product${index}')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="product-details">
+                    <img src="${product.image_url || 'https://via.placeholder.com/500x500'}" 
+                         alt="${product.name}" 
+                         class="product-image-large">
+                    <div class="product-details-text">
+                        <h2>${product.name}</h2>
+                        <div class="product-price-large">₹${product.price}</div>
+                        <div class="product-category">${product.category}</div>
+                        <div class="product-description-full">
+                            ${product.description}
+                        </div>
+                        ${product.usage_suggestion ? `
+                            <div class="product-suggestion">
+                                <h4>💡 Usage Suggestion</h4>
+                                <p>${product.usage_suggestion}</p>
+                            </div>
+                        ` : ''}
+                        ${dimensionsHTML ? `
+                            <div class="product-dimensions">
+                                <h4>📏 Dimensions</h4>
+                                <div class="dimensions-grid">
+                                    ${dimensionsHTML}
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${colors.length > 0 ? `
+                            <div class="color-picker-section">
+                                <h4>🎨 Available Colors</h4>
+                                <div class="color-options">
+                                    ${colorOptionsHTML}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    return modal;
+}
+
 // Initialize Three.js background
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -229,11 +384,17 @@ Object.entries(activityAnimations).forEach(([iconId, animationPath]) => {
     }
 });
 
-// Animal Friends World Interactions
+// Load initial content when page loads
 document.addEventListener('DOMContentLoaded', function () {
     // Load hero content from API
     loadHeroContent();
+    
+    // Load products from API
+    loadProducts();
+});
 
+// Animal Friends World Interactions
+document.addEventListener('DOMContentLoaded', function () {
     // Initialize the animals with default state
     const animals = {
         'pets': {
@@ -542,7 +703,7 @@ document.addEventListener('DOMContentLoaded', function () {
     languageOptions.forEach(option => {
         option.addEventListener('click', function () {
             const language = this.getAttribute('data-lang');
-            switchLanguage(language);
+            switchLanguageGlobally(language);
             currentLanguageDisplay.textContent = this.textContent;
             languageMenu.classList.remove('show');
 
@@ -551,10 +712,14 @@ document.addEventListener('DOMContentLoaded', function () {
             setTimeout(() => {
                 languageToggle.classList.remove('pulse');
             }, 1000);
-            
-            // Use the global language switching function
-            switchLanguageGlobally(language);
         });
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('.language-switcher')) {
+            languageMenu.classList.remove('show');
+        }
     });
 
     // Add data-lang-key attributes to elements
