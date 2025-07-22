@@ -9,43 +9,6 @@ let modalSlideInterval = null;
 let galleryAutoSlideInterval = null;
 let currentGallerySlide = 0;
 
-// Translation object
-const translations = {
-    en: {
-        'hero-title': 'JV HELP',
-        'hero-slogan': 'Heal Help Protect',
-        'activities-title': 'Philanthropic Activities by Shri Jayveer Jeevdaya Group',
-        'gallery-title': 'Our Activities Gallery',
-        'gallery-subtitle': 'Witness the impact of our philanthropic work through these moments',
-        'animal-friends-title': 'Animal Friends World',
-        'animal-friends-subtitle': 'Meet your animal friends who need your help!',
-        'eco-products-title': 'Our Eco-Friendly Products',
-        'eco-products-subtitle': 'Sustainable solutions for a better tomorrow'
-    },
-    hi: {
-        'hero-title': 'जेवी हेल्प',
-        'hero-slogan': 'हील हेल्प प्रोटेक्ट',
-        'activities-title': 'श्री जयवीर जीवदया समूह की परोपकारी गतिविधियां',
-        'gallery-title': 'हमारी गतिविधियों की गैलरी',
-        'gallery-subtitle': 'इन क्षणों के माध्यम से हमारे परोपकारी कार्य के प्रभाव को देखें',
-        'animal-friends-title': 'पशु मित्र संसार',
-        'animal-friends-subtitle': 'अपने पशु मित्रों से मिलें जिन्हें आपकी मदद की जरूरत है!',
-        'eco-products-title': 'हमारे पर्यावरण-अनुकूल उत्पाद',
-        'eco-products-subtitle': 'बेहतर कल के लिए टिकाऊ समाधान'
-    },
-    gu: {
-        'hero-title': 'જેવી હેલ્પ',
-        'hero-slogan': 'હીલ હેલ્પ પ્રોટેક્ટ',
-        'activities-title': 'શ્રી જયવીર જીવદયા ગ્રુપની પરોપકારી પ્રવૃત્તિઓ',
-        'gallery-title': 'અમારી પ્રવૃત્તિઓની ગેલેરી',
-        'gallery-subtitle': 'આ ક્ષણો દ્વારા અમારા પરોપકારી કાર્યની અસર જુઓ',
-        'animal-friends-title': 'પ્રાણી મિત્રો વિશ્વ',
-        'animal-friends-subtitle': 'તમારા પ્રાણી મિત્રોને મળો જેમને તમારી મદદની જરૂર છે!',
-        'eco-products-title': 'અમારા પર્યાવરણ-અનુકૂળ ઉત્પાદનો',
-        'eco-products-subtitle': 'વધુ સારા આવતીકાલ માટે ટકાઉ ઉકેલો'
-    }
-};
-
 // Language detection and management
 function detectUserLanguage() {
     const browserLang = navigator.language || navigator.userLanguage;
