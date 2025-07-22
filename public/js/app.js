@@ -1,810 +1,1415 @@
-// Global variables
+// Global language state
 let currentLanguage = 'en';
-let galleryData = [];
-let filteredGalleryData = [];
-let currentPage = 1;
-const itemsPerPage = 6;
-let currentModalSlide = 0;
-let modalSlideInterval = null;
+let contentCache = {};
 
-// Utility function to escape characters that can break JavaScript template literals
-function escapeTemplateString(str) {
-    if (!str || typeof str !== 'string') return '';
-    return str.replace(/`/g, '\\`')
-             .replace(/\${/g, '\\${')
-             .replace(/\\/g, '\\\\');
-}
-
-// Utility function to escape characters for HTML attributes
-function escapeHtmlAttribute(str) {
-    if (!str || typeof str !== 'string') return '';
-    return str.replace(/"/g, '&quot;')
-             .replace(/'/g, '&#39;')
-             .replace(/</g, '&lt;')
-             .replace(/>/g, '&gt;')
-             .replace(/&/g, '&amp;');
-}
-
-// Language detection and management
-function detectUserLanguage() {
-    const browserLang = navigator.language || navigator.userLanguage;
-    const langCode = browserLang.split('-')[0];
-    
-    if (['hi', 'gu'].includes(langCode)) {
-        return langCode;
-    }
-    return 'en';
-}
-
-function showLanguagePrompt() {
-    const detectedLang = detectUserLanguage();
-    if (detectedLang !== 'en' && !localStorage.getItem('languagePromptShown')) {
-        const prompt = document.getElementById('language-prompt');
-        if (prompt) {
-            setTimeout(() => {
-                prompt.classList.add('show');
-                document.querySelector('.language-switcher .language-button').classList.add('pulse');
-            }, 3000);
-        }
-    }
-}
-
-function hideLanguagePrompt() {
-    const prompt = document.getElementById('language-prompt');
-    if (prompt) {
-        prompt.classList.remove('show');
-        document.querySelector('.language-switcher .language-button').classList.remove('pulse');
-        localStorage.setItem('languagePromptShown', 'true');
-    }
-}
-
-// Language switching functionality
-function switchLanguage(lang) {
-    currentLanguage = lang;
-    localStorage.setItem('preferredLanguage', lang);
-    
-    // Update language button
-    const languageNames = { en: 'English', hi: 'हिंदी', gu: 'ગુજરાતી' };
-    document.querySelector('.current-language').textContent = languageNames[lang];
-    
-    // Update static content
-    updateStaticContent();
-    
-    // Reload dynamic content
-    loadHeroContent();
-    loadGalleryData();
-    
-    hideLanguagePrompt();
-}
-
-function updateStaticContent() {
-    const elements = document.querySelectorAll('[data-lang-key]');
-    elements.forEach(element => {
-        const key = element.getAttribute('data-lang-key');
-        if (translations[currentLanguage] && translations[currentLanguage][key]) {
-            element.textContent = translations[currentLanguage][key];
-        }
-    });
-}
-
-// API functions
-async function loadHeroContent() {
+// Fetch hero content from API
+async function loadHeroContent(language = 'en') {
     try {
-        const response = await fetch(`/api/hero-content?lang=${currentLanguage}`);
+        const response = await fetch(`/api/hero-content?lang=${language}`);
         const data = await response.json();
         
         if (data.error) {
-            console.warn('Using fallback hero content:', data.fallback);
-            document.getElementById('hero-title').textContent = data.fallback.title;
-            document.getElementById('hero-slogan').textContent = data.fallback.subtitle;
+            console.warn('Using fallback content:', data.fallback);
+            // Use fallback content if there's an error
+            updateHeroContent(data.fallback.title, data.fallback.subtitle);
         } else {
-            document.getElementById('hero-title').textContent = data.title;
-            document.getElementById('hero-slogan').textContent = data.subtitle;
+            // Cache all language data
+            contentCache.hero = data.all_languages;
+            
+            // Use language-specific data from Supabase
+            updateHeroContent(data.title, data.subtitle);
         }
     } catch (error) {
-        console.error('Error loading hero content:', error);
-        document.getElementById('hero-title').textContent = 'JV HELP';
-        document.getElementById('hero-slogan').textContent = 'Heal Help Protect';
+        console.error('Failed to load hero content:', error);
+        // Use default fallback
+        updateHeroContent('JV HELP', 'Heal Help Protect');
     }
 }
 
-async function loadGalleryData() {
-    const loadingElement = document.getElementById('gallery-loading');
-    const gridElement = document.getElementById('gallery-grid');
-    const noResultsElement = document.getElementById('gallery-no-results');
+// Update hero content in DOM
+function updateHeroContent(title, subtitle) {
+    const titleElement = document.getElementById('hero-title');
+    const subtitleElement = document.getElementById('hero-slogan');
     
+    if (titleElement) titleElement.textContent = title;
+    if (subtitleElement) subtitleElement.textContent = subtitle;
+}
+
+// Generic function to load multilingual content
+async function loadMultilingualContent(table, language = 'en') {
     try {
-        loadingElement.classList.remove('hidden');
-        gridElement.innerHTML = '';
-        noResultsElement.classList.add('hidden');
-        
-        const response = await fetch(`/api/activities-gallery?lang=${currentLanguage}`);
+        const response = await fetch(`/api/content/${table}?lang=${language}`);
         const result = await response.json();
         
         if (result.error) {
-            console.warn('Gallery API error:', result.error);
-            galleryData = generateSampleGalleryData();
-        } else {
-            galleryData = result.data || [];
+            console.warn(`Failed to load ${table} content:`, result.error);
+            return [];
         }
         
-        // If no data from API, use sample data
-        if (galleryData.length === 0) {
-            galleryData = generateSampleGalleryData();
-        }
-        
-        filteredGalleryData = [...galleryData];
-        renderGallery();
-        
+        // Cache the content
+        contentCache[table] = result.data;
+        return result.data;
     } catch (error) {
-        console.error('Error loading gallery data:', error);
-        galleryData = generateSampleGalleryData();
-        filteredGalleryData = [...galleryData];
-        renderGallery();
-    } finally {
-        loadingElement.classList.add('hidden');
+        console.error(`Failed to load ${table} content:`, error);
+        return [];
     }
 }
 
-function generateSampleGalleryData() {
-    const sampleImages = [
-        'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=800',
-        'https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=800',
-        'https://images.pexels.com/photos/1805164/pexels-photo-1805164.jpeg?auto=compress&cs=tinysrgb&w=800',
-        'https://images.pexels.com/photos/1851164/pexels-photo-1851164.jpeg?auto=compress&cs=tinysrgb&w=800',
-        'https://images.pexels.com/photos/1851165/pexels-photo-1851165.jpeg?auto=compress&cs=tinysrgb&w=800'
-    ];
+// Switch language globally
+function switchLanguageGlobally(newLanguage) {
+    currentLanguage = newLanguage;
     
-    const categories = ['welfare', 'education', 'rescue', 'celebration', 'environment'];
-    const categoryTranslations = {
-        en: { welfare: 'Welfare', education: 'Education', rescue: 'Rescue', celebration: 'Celebration', environment: 'Environment' },
-        hi: { welfare: 'कल्याण', education: 'शिक्षा', rescue: 'बचाव', celebration: 'उत्सव', environment: 'पर्यावरण' },
-        gu: { welfare: 'કલ્યાણ', education: 'શિક્ષણ', rescue: 'બચાવ', celebration: 'ઉત્સવ', environment: 'પર્યાવરણ' }
-    };
-    
-    return Array.from({ length: 12 }, (_, i) => {
-        const category = categories[i % categories.length];
-        const additionalImages = Array.from({ length: 4 }, (_, j) => 
-            sampleImages[(i + j + 1) % sampleImages.length]
+    // Update hero content
+    if (contentCache.hero && contentCache.hero[newLanguage]) {
+        updateHeroContent(
+            contentCache.hero[newLanguage].title,
+            contentCache.hero[newLanguage].subtitle
         );
-        
-        return {
-            id: i + 1,
-            title_en: `Activity ${i + 1}`,
-            title_hi: `गतिविधि ${i + 1}`,
-            title_gu: `પ્રવૃત્તિ ${i + 1}`,
-            description_en: `This is a detailed description of activity ${i + 1}. Our team worked tirelessly to make this initiative successful.`,
-            description_hi: `यह गतिविधि ${i + 1} का विस्तृत विवरण है। हमारी टीम ने इस पहल को सफल बनाने के लिए अथक परिश्रम किया।`,
-            description_gu: `આ પ્રવૃત્તિ ${i + 1} નું વિગતવાર વર્ણન છે. અમારી ટીમે આ પહેલને સફળ બનાવવા માટે અથાક મહેનત કરી.`,
-            image: sampleImages[i % sampleImages.length],
-            images: [sampleImages[i % sampleImages.length], ...additionalImages],
-            category_en: category.toUpperCase(),
-            category_hi: categoryTranslations.hi[category],
-            category_gu: categoryTranslations.gu[category],
-            date: new Date(2024, i % 12, (i % 28) + 1).toISOString().split('T')[0],
-            quote_en: `"This activity has made a significant impact on our community." - Volunteer ${i + 1}`,
-            quote_hi: `"इस गतिविधि ने हमारे समुदाय पर महत्वपूर्ण प्रभाव डाला है।" - स्वयंसेवक ${i + 1}`,
-            quote_gu: `"આ પ્રવૃત્તિએ અમારા સમુદાય પર નોંધપાત્ર અસર કરી છે." - સ્વયંસેવક ${i + 1}`,
-            stats: { beneficiaries: `${(i + 1) * 50}+`, locations: `${i + 1}` }
-        };
+    } else {
+        loadHeroContent(newLanguage);
+    }
+    
+    // Update other content sections
+    updateAllContentSections(newLanguage);
+    
+    // Update gallery language
+    updateGalleryLanguage(newLanguage);
+    
+    // Update language switcher display
+    updateLanguageDisplay(newLanguage);
+    
+    // Load products in new language
+    loadProducts(newLanguage);
+    
+    // Reload activities gallery in new language
+    loadActivitiesGallery(newLanguage).then(activities => {
+        if (activities.length > 0) {
+            allGalleryItems = activities;
+            filteredGalleryItems = [...allGalleryItems];
+            applyFiltersAndSort();
+        }
     });
 }
 
-function renderGallery() {
-    const gridElement = document.getElementById('gallery-grid');
-    const noResultsElement = document.getElementById('gallery-no-results');
+// Update all content sections with new language
+function updateAllContentSections(language) {
+    // Update static translations using existing translation system
+    const existingTranslations = {
+        'hi': {
+            'hero-title': 'जेवी_हेल्प',
+            'hero-slogan': 'हील हेल्प प्रोटेक्ट',
+            'section-title': 'श्री जयवीर जीवदया ग्रुप द्वारा परोपकारी गतिविधियां',
+            'winter-care': 'सर्दी की देखभाल',
+            'winter-desc': 'सर्दी के मौसम में वंचित बच्चों को स्वेटर और कंबल का वितरण।',
+            'festival-joy': 'त्योहार की खुशी',
+            'festival-desc': 'दिवाली त्योहार के दौरान बच्चों को मिठाई और नाश्ते का वितरण।',
+            'animal-welfare': 'पशु कल्याण',
+            'animal-desc': 'गर्मियों के दौरान जानवरों और पक्षियों को हाइड्रेटेड रखने के लिए पानी के कटोरे का मुफ्त वितरण।',
+            'wildlife-conservation': 'वन्यजीव संरक्षण',
+            'wildlife-desc': 'वन्यजीव संरक्षण को प्रोत्साहित करने के लिए गौरैया के लिए पक्षीघरों का मुफ्त वितरण।',
+            'daily-feeding': 'दैनिक भोजन',
+            'daily-desc': 'पक्षियों को अनाज का दैनिक खिलाना।',
+            'educational-support': 'शैक्षिक सहायता',
+            'educational-desc': 'शैक्षिक सहायता की आवश्यकता वाले वंचित बच्चों को मुफ्त नोटबुक का प्रावधान।',
+            'animal-rescue': 'पशु बचाव',
+            'animal-rescue-desc': 'संकटग्रस्त जानवरों, पक्षियों और सांपों का बचाव और सुरक्षित पुनर्स्थापना।',
+            'year-round-support': 'वर्ष भर सहायता',
+            'year-round-desc': 'पशु कल्याण को बढ़ावा देने के लिए पक्षीघरों, पक्षी फीडर और पानी के कटोरे का 365 दिन वितरण।',
+        },
+        'gu': {
+            'hero-title': 'જેવી_હેલ્પ',
+            'hero-slogan': 'હીલ હેલ્પ પ્રોટેક્ટ',
+            'section-title': 'શ્રી જયવીર જીવદયા ગ્રુપ દ્વારા પરોપકારી પ્રવૃત્તિઓ',
+            'winter-care': 'શિયાળાની સંભાળ',
+            'winter-desc': 'શિયાળાની ઋતુ દરમિયાન વંચિત બાળકોને સ્વેટર અને ધાબળાનું વિતરણ.',
+            'festival-joy': 'તહેવારની ખુશી',
+            'festival-desc': 'દિવાળી તહેવાર દરમિયાન બાળકોને મીઠાઈ અને નાસ્તાનું વિતરણ.',
+            'animal-welfare': 'પશુ કલ્યાણ',
+            'animal-desc': 'ઉનાળા દરમિયાન પ્રાણીઓ અને પક્ષીઓને હાઇડ્રેટેડ રાખવા માટે પાણીના વાટકાનું મફત વિતરણ.',
+            'wildlife-conservation': 'વન્યજીવન સંરક્ષણ',
+            'wildlife-desc': 'વન્યજીવન સંરક્ષણને પ્રોત્સાહન આપવા માટે ચકલીઓ માટે પક્ષીઘરનું મફત વિતરણ.',
+            'daily-feeding': 'રોજનું ખવડાવવું',
+            'daily-desc': 'પક્ષીઓને અનાજનું દૈનિક ખવડાવવું.',
+            'educational-support': 'શૈક્ષણિક સહાય',
+            'educational-desc': 'શૈક્ષણિક સહાયની જરૂર હોય તેવા વંચિત બાળકોને મફત નોટબુકની જોગવાઈ.',
+            'animal-rescue': 'પશુ બચાવ',
+            'animal-rescue-desc': 'સંકટમાં પડેલા પ્રાણીઓ, પક્ષીઓ અને સાપનું બચાવ અને સુરક્ષિત પુનઃસ્થાપન.',
+            'year-round-support': 'વર્ષભર સહાય',
+            'year-round-desc': 'પશુ કલ્યાણને પ્રોત્સાહન આપવા માટે પક્ષીઘર, પક્ષી ફીડર અને પાણીના વાટકાનું 365-દિવસનું વિતરણ.',
+        }
+    };
     
-    if (filteredGalleryData.length === 0) {
-        gridElement.innerHTML = '';
-        noResultsElement.classList.remove('hidden');
-        return;
+    // Apply translations to static content
+    if (language !== 'en' && existingTranslations[language]) {
+        document.querySelectorAll('[data-lang-key]').forEach(element => {
+            const key = element.getAttribute('data-lang-key');
+            if (existingTranslations[language][key]) {
+                element.textContent = existingTranslations[language][key];
+            }
+        });
+    } else {
+        // Reset to English
+        document.querySelectorAll('[data-lang-key]').forEach(element => {
+            const originalText = element.getAttribute('data-original-text');
+            if (originalText) {
+                element.textContent = originalText;
+            }
+        });
+    }
+}
+
+// Update language display in switcher
+function updateLanguageDisplay(language) {
+    const languageNames = {
+        'en': 'English',
+        'hi': 'हिंदी',
+        'gu': 'ગુજરાતી'
+    };
+    
+    const currentLanguageDisplay = document.querySelector('.current-language');
+    if (currentLanguageDisplay) {
+        currentLanguageDisplay.textContent = languageNames[language] || 'English';
+    }
+}
+
+// Load products from API
+async function loadProducts(language = 'en') {
+    try {
+        const response = await fetch(`/api/content/products?lang=${language}`);
+        const result = await response.json();
+        
+        if (result.error) {
+            console.warn('Failed to load products:', result.error);
+            return;
+        }
+        
+        // Cache the products
+        contentCache.products = result.data;
+        
+        // Update products display
+        updateProductsDisplay(result.data);
+    } catch (error) {
+        console.error('Failed to load products:', error);
+    }
+}
+
+// Update products display in DOM
+function updateProductsDisplay(products) {
+    const productsGrid = document.querySelector('.products-grid');
+    if (!productsGrid) return;
+    
+    // Clear existing products
+    productsGrid.innerHTML = '';
+    
+    // Create product cards
+    products.forEach((product, index) => {
+        const productCard = createProductCard(product, index + 1);
+        productsGrid.appendChild(productCard);
+    });
+}
+
+// Create a product card element
+function createProductCard(product, index) {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    card.onclick = () => openModal(`product${index}`);
+    
+    // Parse colors if it's a JSON string
+    let colors = [];
+    try {
+        colors = typeof product.colors === 'string' ? JSON.parse(product.colors) : (product.colors || []);
+    } catch (e) {
+        colors = [];
     }
     
-    noResultsElement.classList.add('hidden');
+    card.innerHTML = `
+        <img src="${product.image_url || 'https://via.placeholder.com/300x250'}" 
+             alt="${product.name}" 
+             class="product-image">
+        <div class="product-info">
+            <div class="product-name">${product.name}</div>
+            <div class="product-price">₹${product.price}</div>
+            <div class="product-category">${product.category}</div>
+            <div class="product-description-short">${product.short_description}</div>
+            <button class="view-more-btn">View More</button>
+        </div>
+    `;
     
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const pageData = filteredGalleryData.slice(startIndex, endIndex);
+    // Create and append modal
+    const modal = createProductModal(product, index, colors);
+    document.body.appendChild(modal);
     
-    gridElement.innerHTML = pageData.map(item => {
-        const title = escapeTemplateString(item[`title_${currentLanguage}`] || item.title_en || 'Activity');
-        const description = escapeTemplateString(item[`description_${currentLanguage}`] || item.description_en || 'Description');
-        const category = escapeTemplateString(item[`category_${currentLanguage}`] || item.category_en || 'General');
-        const quote = escapeTemplateString(item[`quote_${currentLanguage}`] || item.quote_en || '');
-        
-        return `
-            <div class="gallery-item" onclick="openGalleryModal(${item.id})">
-                <div class="gallery-item-image-container">
-                    <img src="${escapeHtmlAttribute(item.image)}" alt="${escapeHtmlAttribute(title)}" class="gallery-item-image" loading="lazy">
-                    <div class="gallery-item-category">${category}</div>
-                    <div class="gallery-item-stats">
-                        <i class="fas fa-users"></i>
-                        <span>${item.stats?.beneficiaries || '100+'}</span>
-                    </div>
-                </div>
-                <div class="gallery-item-content">
-                    <h3 class="gallery-item-title">${title}</h3>
-                    <p class="gallery-item-description">${description.substring(0, 120)}...</p>
-                    <div class="gallery-item-meta">
-                        <div class="gallery-item-date">
-                            <i class="fas fa-calendar"></i>
-                            ${new Date(item.date).toLocaleDateString()}
-                        </div>
-                        <div class="gallery-item-actions">
-                            <button class="action-btn" title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="action-btn" title="Share">
-                                <i class="fas fa-share"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="gallery-item-overlay">
-                    <i class="fas fa-search-plus"></i>
-                    <div class="overlay-text">View Details</div>
-                    <div class="overlay-subtitle">Click to explore</div>
-                </div>
+    return card;
+}
+
+// Create product modal
+function createProductModal(product, index, colors) {
+    const modal = document.createElement('div');
+    modal.id = `product${index}Modal`;
+    modal.className = 'modal';
+    
+    // Create color options HTML
+    const colorOptionsHTML = colors.map(color => 
+        `<div class="color-option" style="background-color: ${color};" onclick="selectColor(this)"></div>`
+    ).join('');
+    
+    // Create dimensions HTML
+    const dimensionsHTML = `
+        ${product.height_cm ? `
+            <div class="dimension-item">
+                <div class="dimension-label">Height</div>
+                <div class="dimension-value">${product.height_cm} cm</div>
             </div>
-        `;
-    }).join('');
-    
-    renderPagination();
-}
-
-function renderPagination() {
-    const paginationElement = document.getElementById('gallery-pagination');
-    const totalPages = Math.ceil(filteredGalleryData.length / itemsPerPage);
-    
-    if (totalPages <= 1) {
-        paginationElement.innerHTML = '';
-        return;
-    }
-    
-    let paginationHTML = `
-        <button class="pagination-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
-            <i class="fas fa-chevron-left"></i>
-        </button>
+        ` : ''}
+        ${product.width_cm ? `
+            <div class="dimension-item">
+                <div class="dimension-label">Width</div>
+                <div class="dimension-value">${product.width_cm} cm</div>
+            </div>
+        ` : ''}
+        ${product.volume_ml ? `
+            <div class="dimension-item">
+                <div class="dimension-label">Volume</div>
+                <div class="dimension-value">${product.volume_ml} ml</div>
+            </div>
+        ` : ''}
     `;
-    
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-            paginationHTML += `
-                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">
-                    ${i}
-                </button>
-            `;
-        } else if (i === currentPage - 2 || i === currentPage + 2) {
-            paginationHTML += `<span class="pagination-ellipsis">...</span>`;
-        }
-    }
-    
-    paginationHTML += `
-        <button class="pagination-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
-            <i class="fas fa-chevron-right"></i>
-        </button>
-    `;
-    
-    paginationElement.innerHTML = paginationHTML;
-}
-
-function changePage(page) {
-    const totalPages = Math.ceil(filteredGalleryData.length / itemsPerPage);
-    if (page >= 1 && page <= totalPages) {
-        currentPage = page;
-        renderGallery();
-        document.querySelector('.gallery-grid').scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
-function openGalleryModal(itemId) {
-    const item = galleryData.find(i => i.id === itemId);
-    if (!item) return;
-    
-    const modal = document.getElementById('gallery-modal') || createGalleryModal();
-    const title = escapeTemplateString(item[`title_${currentLanguage}`] || item.title_en || 'Activity');
-    const description = escapeTemplateString(item[`description_${currentLanguage}`] || item.description_en || 'Description');
-    const quote = escapeTemplateString(item[`quote_${currentLanguage}`] || item.quote_en || '');
-    
-    // Prepare images array - check for both naming conventions
-    let images = [escapeTemplateString(item.image)];
-    
-    // Check for additional images with both naming conventions
-    for (let i = 1; i <= 5; i++) {
-        const imageLM = item[`image_lm_${i}`];
-        const imageLMCaps = item[`image_LM_${i}`];
-        
-        if (imageLM) {
-            images.push(escapeTemplateString(imageLM));
-        } else if (imageLMCaps) {
-            images.push(escapeTemplateString(imageLMCaps));
-        }
-    }
-    
-    // If we have the images array from the item, use that instead
-    if (item.images && Array.isArray(item.images) && item.images.length > 1) {
-        images = item.images.map(img => escapeTemplateString(img));
-    }
-    
-    // Remove duplicates and filter out empty/null values
-    images = [...new Set(images.filter(img => img && img.trim() !== ''))];
-    
-    // If we only have one image, add some sample images for demonstration
-    if (images.length === 1) {
-        const sampleImages = [
-            escapeTemplateString('https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=800'),
-            escapeTemplateString('https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=800'),
-            escapeTemplateString('https://images.pexels.com/photos/1805164/pexels-photo-1805164.jpeg?auto=compress&cs=tinysrgb&w=800')
-        ];
-        images = [images[0], ...sampleImages.slice(0, 3)];
-    }
     
     modal.innerHTML = `
-        <div class="gallery-modal-content">
-            <div class="gallery-modal-header">
-                <h2 class="gallery-modal-title">${title}</h2>
-                <button class="gallery-modal-close" onclick="closeGalleryModal()">&times;</button>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Product Details</h2>
+                <button class="close" onclick="closeModal('product${index}')">&times;</button>
             </div>
-            <div class="gallery-modal-body">
-                <div class="gallery-modal-carousel">
-                    <div class="gallery-modal-carousel-container">
-                        ${images.map((img, index) => `
-                            <div class="gallery-modal-carousel-slide ${index === 0 ? 'active' : ''}">
-                                <img src="${escapeHtmlAttribute(img)}" alt="${escapeHtmlAttribute(title)} - Image ${index + 1}" loading="lazy">
+            <div class="modal-body">
+                <div class="product-details">
+                    <img src="${product.image_url || 'https://via.placeholder.com/500x500'}" 
+                         alt="${product.name}" 
+                         class="product-image-large">
+                    <div class="product-details-text">
+                        <h2>${product.name}</h2>
+                        <div class="product-price-large">₹${product.price}</div>
+                        <div class="product-category">${product.category}</div>
+                        <div class="product-description-full">
+                            ${product.description}
+                        </div>
+                        ${product.usage_suggestion ? `
+                            <div class="product-suggestion">
+                                <h4>💡 Usage Suggestion</h4>
+                                <p>${product.usage_suggestion}</p>
                             </div>
-                        `).join('')}
-                    </div>
-                    ${images.length > 1 ? `
-                        <button class="gallery-modal-carousel-nav prev" onclick="changeModalSlide(-1)">
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <button class="gallery-modal-carousel-nav next" onclick="changeModalSlide(1)">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
-                        <div class="gallery-modal-carousel-indicators">
-                            ${images.map((_, index) => `
-                                <div class="gallery-modal-carousel-dot ${index === 0 ? 'active' : ''}" onclick="goToModalSlide(${index})"></div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="gallery-modal-details">
-                    ${quote ? `
-                        <div class="gallery-modal-quote">
-                            ${quote}
-                        </div>
-                    ` : ''}
-                    <div class="gallery-modal-description">
-                        ${description}
-                    </div>
-                    <div class="gallery-modal-meta">
-                        <div class="gallery-modal-meta-item">
-                            <div class="gallery-modal-meta-label">Date</div>
-                            <div class="gallery-modal-meta-value">${new Date(item.date).toLocaleDateString()}</div>
-                        </div>
-                        <div class="gallery-modal-meta-item">
-                            <div class="gallery-modal-meta-label">Beneficiaries</div>
-                            <div class="gallery-modal-meta-value">${item.stats?.beneficiaries || '100+'}</div>
-                        </div>
-                        <div class="gallery-modal-meta-item">
-                            <div class="gallery-modal-meta-label">Locations</div>
-                            <div class="gallery-modal-meta-value">${item.stats?.locations || '5'}</div>
-                        </div>
-                        <div class="gallery-modal-meta-item">
-                            <div class="gallery-modal-meta-label">Category</div>
-                            <div class="gallery-modal-meta-value">${escapeTemplateString(item[`category_${currentLanguage}`] || item.category_en)}</div>
-                        </div>
+                        ` : ''}
+                        ${dimensionsHTML ? `
+                            <div class="product-dimensions">
+                                <h4>📏 Dimensions</h4>
+                                <div class="dimensions-grid">
+                                    ${dimensionsHTML}
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${colors.length > 0 ? `
+                            <div class="color-picker-section">
+                                <h4>🎨 Available Colors</h4>
+                                <div class="color-options">
+                                    ${colorOptionsHTML}
+                                </div>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             </div>
         </div>
     `;
     
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-    
-    // Initialize modal carousel
-    currentModalSlide = 0;
-    startModalAutoSlide(images.length);
-}
-
-function createGalleryModal() {
-    const modal = document.createElement('div');
-    modal.id = 'gallery-modal';
-    modal.className = 'gallery-modal';
-    document.body.appendChild(modal);
-    
-    // Close modal when clicking outside
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeGalleryModal();
-        }
-    });
-    
     return modal;
 }
 
-function closeGalleryModal() {
+// Initialize Three.js background
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.getElementById('background-shapes').appendChild(renderer.domElement);
+
+// Create floating shapes
+const shapes = [];
+for (let i = 0; i < 10; i++) {
+    const geometry = new THREE.SphereGeometry(1, 32, 32);
+    const material = new THREE.MeshBasicMaterial({
+        color: 0x1a237e,
+        transparent: true,
+        opacity: 0.1
+    });
+    const shape = new THREE.Mesh(geometry, material);
+    shape.position.set(
+        Math.random() * 40 - 20,
+        Math.random() * 40 - 20,
+        Math.random() * 40 - 20
+    );
+    shapes.push(shape);
+    scene.add(shape);
+}
+
+camera.position.z = 30;
+
+// Animation loop
+function animate() {
+    requestAnimationFrame(animate);
+    shapes.forEach(shape => {
+        shape.rotation.x += 0.01;
+        shape.rotation.y += 0.01;
+    });
+    renderer.render(scene, camera);
+}
+animate();
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Load activity icons with contextual animations
+const activityAnimations = {
+    'winter-icon': 'https://assets6.lottiefiles.com/packages/lf20_FP2uV9.json',
+    'diwali-icon': 'https://assets9.lottiefiles.com/packages/lf20_m9zragkd.json',
+    'water-icon': 'https://lottie.host/4c48890e-e58e-4ec1-9268-996a62ab772a/8ATjLwiT15.lottie',
+    'birdhouse-icon': 'https://assets6.lottiefiles.com/packages/lf20_syqnfe7c.json',
+    'feeding-icon': 'https://assets3.lottiefiles.com/packages/lf20_wdfng7n6.json',
+    'education-icon': 'https://assets6.lottiefiles.com/packages/lf20_w51pcehl.json',
+    'rescue-icon': 'https://assets9.lottiefiles.com/packages/lf20_pbkjxppc.json',
+    'year-round-icon': 'https://assets5.lottiefiles.com/packages/lf20_qpsh9lay.json'
+};
+
+// Load animations for each activity icon
+Object.entries(activityAnimations).forEach(([iconId, animationPath]) => {
+    const element = document.getElementById(iconId);
+    if (element) {
+        lottie.loadAnimation({
+            container: element,
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            path: animationPath
+        });
+    }
+});
+
+// Load initial content when page loads
+document.addEventListener('DOMContentLoaded', function () {
+    // Load hero content from API
+    loadHeroContent();
+    
+    // Load products from API
+    loadProducts();
+    
+    // Initialize gallery
+    initializeEnhancedGallery();
+});
+
+// Enhanced Activities Gallery functionality
+let currentPage = 1;
+let itemsPerPage = 6;
+let allGalleryItems = [];
+let filteredGalleryItems = [];
+let currentFilter = 'all';
+let currentSort = 'date-desc';
+let searchQuery = '';
+
+// Modal carousel variables
+let currentModalSlide = 0;
+let modalCarouselInterval = null;
+
+// Load activities gallery from API
+async function loadActivitiesGallery(language = 'en') {
+    try {
+        const response = await fetch(`/api/activities-gallery?lang=${language}`);
+        const result = await response.json();
+        
+        if (result.error) {
+            console.warn('Failed to load activities gallery:', result.error);
+            return [];
+        }
+        
+        return result.data;
+    } catch (error) {
+        console.error('Failed to load activities gallery:', error);
+        return [];
+    }
+}
+
+// Initialize enhanced gallery
+async function initializeEnhancedGallery() {
+    showLoading();
+    
+    try {
+        // Load activities from API instead of using hardcoded data
+        const activities = await loadActivitiesGallery(currentLanguage);
+        
+        if (activities.length > 0) {
+            allGalleryItems = activities;
+            filteredGalleryItems = [...allGalleryItems];
+        } else {
+            // Fallback to empty array if API fails
+            allGalleryItems = [];
+            filteredGalleryItems = [];
+        }
+        
+        setupGalleryEventListeners();
+        renderGallery();
+    } catch (error) {
+        console.error('Failed to initialize gallery:', error);
+        allGalleryItems = [];
+        filteredGalleryItems = [];
+        renderGallery();
+    } finally {
+        hideLoading();
+    }
+}
+
+// Setup event listeners for gallery controls
+function setupGalleryEventListeners() {
+    // Search functionality
+    const searchInput = document.getElementById('gallery-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(handleSearch, 300));
+    }
+    
+    // Filter buttons
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', handleFilter);
+    });
+    
+    // Sort dropdown
+    const sortSelect = document.getElementById('gallery-sort-select');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', handleSort);
+    }
+}
+
+// Handle search functionality
+function handleSearch(event) {
+    searchQuery = event.target.value.toLowerCase();
+    applyFiltersAndSort();
+}
+
+// Handle filter functionality
+function handleFilter(event) {
+    // Update active filter button
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    currentFilter = event.target.dataset.filter;
+    currentPage = 1; // Reset to first page
+    applyFiltersAndSort();
+}
+
+// Handle sort functionality
+function handleSort(event) {
+    currentSort = event.target.value;
+    currentPage = 1; // Reset to first page
+    applyFiltersAndSort();
+}
+
+// Apply filters and sorting
+function applyFiltersAndSort() {
+    showLoading();
+    
+    // Filter items
+    filteredGalleryItems = allGalleryItems.filter(item => {
+        // Convert filter to uppercase to match database categories
+        const filterCategory = currentFilter.toUpperCase();
+        const matchesFilter = currentFilter === 'all' || item.category_en === filterCategory;
+        const matchesSearch = searchQuery === '' || 
+            item.title_en.toLowerCase().includes(searchQuery) ||
+            item.description_en.toLowerCase().includes(searchQuery);
+        
+        return matchesFilter && matchesSearch;
+    });
+    
+    // Sort items
+    filteredGalleryItems.sort((a, b) => {
+        switch (currentSort) {
+            case 'date-desc':
+                return new Date(b.created_at || b.date) - new Date(a.created_at || a.date);
+            case 'date-asc':
+                return new Date(a.created_at || a.date) - new Date(b.created_at || b.date);
+            case 'title-asc':
+                return a.title_en.localeCompare(b.title_en);
+            case 'title-desc':
+                return b.title_en.localeCompare(a.title_en);
+            default:
+                return (a.display_order || 0) - (b.display_order || 0);
+        }
+    });
+    
+    setTimeout(() => {
+        renderGallery();
+        hideLoading();
+    }, 500); // Simulate loading time
+}
+
+// Render gallery items
+function renderGallery() {
+    const galleryGrid = document.getElementById('gallery-grid');
+    const noResults = document.getElementById('gallery-no-results');
+    
+    if (!galleryGrid) return;
+    
+    // Clear existing content
+    galleryGrid.innerHTML = '';
+    
+    // Check if there are results
+    if (filteredGalleryItems.length === 0) {
+        noResults.classList.remove('hidden');
+        return;
+    } else {
+        noResults.classList.add('hidden');
+    }
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(filteredGalleryItems.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentItems = filteredGalleryItems.slice(startIndex, endIndex);
+    
+    // Create gallery items
+    currentItems.forEach(item => {
+        const galleryItem = createEnhancedGalleryItem(item);
+        galleryGrid.appendChild(galleryItem);
+    });
+    
+    // Update pagination
+    renderPagination(totalPages);
+    
+    // Create modal if it doesn't exist
+    createEnhancedGalleryModal();
+}
+
+// Create enhanced gallery item element
+function createEnhancedGalleryItem(item) {
+    const galleryItem = document.createElement('div');
+    galleryItem.className = 'gallery-item';
+    galleryItem.onclick = () => openEnhancedGalleryModal(item);
+    
+    const lang = currentLanguage || 'en';
+    const title = item[`title_${lang}`] || item.title_en;
+    const description = item[`description_${lang}`] || item.description_en;
+    const category = item[`category_${lang}`] || item.category_en;
+    
+    galleryItem.innerHTML = `
+        <div class="gallery-item-image-container">
+            <img src="${item.image}" alt="${title}" class="gallery-item-image" loading="lazy">
+            <div class="gallery-item-category">${category}</div>
+            <div class="gallery-item-stats">
+                <i class="fas fa-users"></i>
+                ${Object.values(item.stats)[0]}
+            </div>
+        </div>
+        <div class="gallery-item-content">
+            <h3 class="gallery-item-title">${title}</h3>
+            <p class="gallery-item-description">${description.substring(0, 120)}...</p>
+            <div class="gallery-item-meta">
+                <div class="gallery-item-date">
+                    <i class="fas fa-calendar"></i>
+                    ${item.date}
+                </div>
+                <div class="gallery-item-actions">
+                    <button class="action-btn" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="action-btn" title="Share">
+                        <i class="fas fa-share"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="gallery-item-overlay">
+            <i class="fas fa-search-plus"></i>
+            <div class="overlay-text">View Details</div>
+            <div class="overlay-subtitle">Click to explore</div>
+        </div>
+    `;
+    
+    return galleryItem;
+}
+
+// Render pagination
+function renderPagination(totalPages) {
+    const paginationContainer = document.getElementById('gallery-pagination');
+    if (!paginationContainer || totalPages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '';
+    
+    // Previous button
+    paginationHTML += `
+        <button class="pagination-btn ${currentPage === 1 ? 'disabled' : ''}" 
+                onclick="changePage(${currentPage - 1})" 
+                ${currentPage === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    `;
+    
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+            paginationHTML += `
+                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" 
+                        onclick="changePage(${i})">
+                    ${i}
+                </button>
+            `;
+        } else if (i === currentPage - 2 || i === currentPage + 2) {
+            paginationHTML += '<span class="pagination-ellipsis">...</span>';
+        }
+    }
+    
+    // Next button
+    paginationHTML += `
+        <button class="pagination-btn ${currentPage === totalPages ? 'disabled' : ''}" 
+                onclick="changePage(${currentPage + 1})" 
+                ${currentPage === totalPages ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    `;
+    
+    paginationContainer.innerHTML = paginationHTML;
+}
+
+// Change page
+function changePage(page) {
+    if (page < 1 || page > Math.ceil(filteredGalleryItems.length / itemsPerPage)) return;
+    
+    currentPage = page;
+    renderGallery();
+    
+    // Scroll to top of gallery
+    document.querySelector('.activities-gallery-section').scrollIntoView({ 
+        behavior: 'smooth' 
+    });
+}
+
+// Show loading state
+function showLoading() {
+    const loading = document.getElementById('gallery-loading');
+    const grid = document.getElementById('gallery-grid');
+    const noResults = document.getElementById('gallery-no-results');
+    
+    if (loading) loading.classList.remove('hidden');
+    if (grid) grid.style.opacity = '0.5';
+    if (noResults) noResults.classList.add('hidden');
+}
+
+// Hide loading state
+function hideLoading() {
+    const loading = document.getElementById('gallery-loading');
+    const grid = document.getElementById('gallery-grid');
+    
+    if (loading) loading.classList.add('hidden');
+    if (grid) grid.style.opacity = '1';
+}
+
+// Debounce function for search
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Create enhanced gallery modal
+function createEnhancedGalleryModal() {
+    const existingModal = document.getElementById('gallery-modal');
+    if (existingModal) return;
+    
+    const modal = document.createElement('div');
+    modal.id = 'gallery-modal';
+    modal.className = 'gallery-modal';
+    
+    modal.innerHTML = `
+        <div class="gallery-modal-content">
+            <div class="gallery-modal-header">
+                <h2 class="gallery-modal-title" id="gallery-modal-title">Activity Details</h2>
+                <button class="gallery-modal-close" onclick="closeEnhancedGalleryModal()">&times;</button>
+            </div>
+            <div class="gallery-modal-body">
+                <div id="gallery-modal-carousel" class="gallery-modal-carousel">
+                    <div id="gallery-modal-carousel-container" class="gallery-modal-carousel-container">
+                        <!-- Carousel slides will be inserted here -->
+                    </div>
+                    <button class="gallery-modal-carousel-nav prev" onclick="prevModalSlide()">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="gallery-modal-carousel-nav next" onclick="nextModalSlide()">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <div id="gallery-modal-carousel-indicators" class="gallery-modal-carousel-indicators">
+                        <!-- Indicators will be inserted here -->
+                    </div>
+                </div>
+                <div class="gallery-modal-details">
+                    <div id="gallery-modal-quote" class="gallery-modal-quote"></div>
+                    <p id="gallery-modal-description" class="gallery-modal-description"></p>
+                    <div class="gallery-modal-meta" id="gallery-modal-meta">
+                        <!-- Meta items will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            closeEnhancedGalleryModal();
+        }
+    });
+}
+
+// Open enhanced gallery modal
+function openEnhancedGalleryModal(item) {
+    const modal = document.getElementById('gallery-modal');
+    const title = document.getElementById('gallery-modal-title');
+    const quote = document.getElementById('gallery-modal-quote');
+    const description = document.getElementById('gallery-modal-description');
+    const meta = document.getElementById('gallery-modal-meta');
+    
+    if (!modal || !title || !quote || !description || !meta) return;
+    
+    const lang = currentLanguage || 'en';
+    
+    title.textContent = item[`title_${lang}`] || item.title_en;
+    quote.textContent = item[`quote_${lang}`] || item.quote_en || '';
+    description.textContent = item[`description_${lang}`] || item.description_en;
+    
+    // Create meta items
+    let metaHTML = '';
+    metaHTML += `
+        <div class="gallery-modal-meta-item">
+            <div class="gallery-modal-meta-label">Date</div>
+            <div class="gallery-modal-meta-value">${item.date}</div>
+        </div>
+        <div class="gallery-modal-meta-item">
+            <div class="gallery-modal-meta-label">Category</div>
+            <div class="gallery-modal-meta-value">${item[`category_${lang}`] || item.category_en}</div>
+        </div>
+    `;
+    
+    // Add stats
+    Object.entries(item.stats).forEach(([key, value]) => {
+        metaHTML += `
+            <div class="gallery-modal-meta-item">
+                <div class="gallery-modal-meta-label">${key}</div>
+                <div class="gallery-modal-meta-value">${value}</div>
+            </div>
+        `;
+    });
+    
+    meta.innerHTML = metaHTML;
+    
+    // Create and start carousel
+    createEnhancedModalCarousel(item);
+    
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+// Close enhanced gallery modal
+window.closeEnhancedGalleryModal = function() {
     const modal = document.getElementById('gallery-modal');
     if (modal) {
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
-        stopModalAutoSlide();
+        stopModalCarousel();
     }
 }
 
-function changeModalSlide(direction) {
-    const slides = document.querySelectorAll('.gallery-modal-carousel-slide');
-    const dots = document.querySelectorAll('.gallery-modal-carousel-dot');
+// Create enhanced modal carousel
+function createEnhancedModalCarousel(item) {
+    const carouselContainer = document.getElementById('gallery-modal-carousel-container');
+    const indicatorsContainer = document.getElementById('gallery-modal-carousel-indicators');
     
-    if (slides.length === 0) return;
+    if (!carouselContainer || !indicatorsContainer) return;
     
-    // Remove active class from current slide and dot
-    slides[currentModalSlide].classList.remove('active');
-    if (dots[currentModalSlide]) {
-        dots[currentModalSlide].classList.remove('active');
-    }
+    // Clear existing content
+    carouselContainer.innerHTML = '';
+    indicatorsContainer.innerHTML = '';
     
-    // Calculate new slide index
-    currentModalSlide += direction;
-    if (currentModalSlide >= slides.length) {
-        currentModalSlide = 0;
-    } else if (currentModalSlide < 0) {
-        currentModalSlide = slides.length - 1;
-    }
+    const images = item.images || [item.image];
     
-    // Add active class to new slide and dot
-    slides[currentModalSlide].classList.add('active');
-    if (dots[currentModalSlide]) {
-        dots[currentModalSlide].classList.add('active');
-    }
-}
-
-function goToModalSlide(index) {
-    const slides = document.querySelectorAll('.gallery-modal-carousel-slide');
-    const dots = document.querySelectorAll('.gallery-modal-carousel-dot');
-    
-    if (index >= 0 && index < slides.length) {
-        // Remove active class from current slide and dot
-        slides[currentModalSlide].classList.remove('active');
-        if (dots[currentModalSlide]) {
-            dots[currentModalSlide].classList.remove('active');
-        }
+    // Create slides
+    images.forEach((imageUrl, index) => {
+        const slide = document.createElement('div');
+        slide.className = 'gallery-modal-carousel-slide';
+        slide.innerHTML = `<img src="${imageUrl}" alt="Activity Image ${index + 1}" loading="lazy">`;
+        carouselContainer.appendChild(slide);
         
-        // Set new slide index
-        currentModalSlide = index;
-        
-        // Add active class to new slide and dot
-        slides[currentModalSlide].classList.add('active');
-        if (dots[currentModalSlide]) {
-            dots[currentModalSlide].classList.add('active');
-        }
-    }
-}
-
-function startModalAutoSlide(totalSlides) {
-    if (totalSlides <= 1) return;
-    
-    stopModalAutoSlide(); // Clear any existing interval
-    modalSlideInterval = setInterval(() => {
-        changeModalSlide(1);
-    }, 3000); // Change slide every 3 seconds
-}
-
-function stopModalAutoSlide() {
-    if (modalSlideInterval) {
-        clearInterval(modalSlideInterval);
-        modalSlideInterval = null;
-    }
-}
-
-// Gallery filtering and sorting
-function filterGallery() {
-    const searchTerm = document.getElementById('gallery-search-input').value.toLowerCase();
-    const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
-    const sortValue = document.getElementById('gallery-sort-select').value;
-    
-    // Filter data
-    filteredGalleryData = galleryData.filter(item => {
-        const title = (item[`title_${currentLanguage}`] || item.title_en || '').toLowerCase();
-        const description = (item[`description_${currentLanguage}`] || item.description_en || '').toLowerCase();
-        const category = (item.category_en || '').toLowerCase();
-        
-        const matchesSearch = title.includes(searchTerm) || description.includes(searchTerm);
-        const matchesFilter = activeFilter === 'all' || category === activeFilter;
-        
-        return matchesSearch && matchesFilter;
+        // Create indicator
+        const indicator = document.createElement('div');
+        indicator.className = `gallery-modal-carousel-dot ${index === 0 ? 'active' : ''}`;
+        indicator.addEventListener('click', () => goToEnhancedModalSlide(index));
+        indicatorsContainer.appendChild(indicator);
     });
     
-    // Sort data
-    filteredGalleryData.sort((a, b) => {
-        switch (sortValue) {
-            case 'date-desc':
-                return new Date(b.date) - new Date(a.date);
-            case 'date-asc':
-                return new Date(a.date) - new Date(b.date);
-            case 'title-asc':
-                const titleA = a[`title_${currentLanguage}`] || a.title_en || '';
-                const titleB = b[`title_${currentLanguage}`] || b.title_en || '';
-                return titleA.localeCompare(titleB);
-            case 'title-desc':
-                const titleA2 = a[`title_${currentLanguage}`] || a.title_en || '';
-                const titleB2 = b[`title_${currentLanguage}`] || b.title_en || '';
-                return titleB2.localeCompare(titleA2);
-            default:
-                return a.display_order - b.display_order;
-        }
-    });
+    // Reset to first slide
+    currentModalSlide = 0;
+    updateEnhancedModalCarousel();
     
-    currentPage = 1;
-    renderGallery();
+    // Start auto-scroll if multiple images
+    if (images.length > 1) {
+        startModalCarousel(images.length);
+    }
 }
 
-// Animal Friends World functionality
-function initializeAnimalFriends() {
-    const helpButtons = document.querySelectorAll('.help-button');
-    const badges = document.querySelectorAll('.badge');
-    const animalCards = document.querySelectorAll('.animal-friend-card');
+// Update enhanced modal carousel position
+function updateEnhancedModalCarousel() {
+    const carouselContainer = document.getElementById('gallery-modal-carousel-container');
+    const indicators = document.querySelectorAll('.gallery-modal-carousel-dot');
     
-    helpButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const action = this.dataset.action;
-            const card = this.closest('.animal-friend-card');
-            const animal = card.dataset.animal;
-            
-            handleAnimalHelp(animal, action, card);
+    if (carouselContainer) {
+        carouselContainer.style.transform = `translateX(-${currentModalSlide * 20}%)`;
+    }
+    
+    // Update indicators
+    indicators.forEach((indicator, index) => {
+        indicator.classList.toggle('active', index === currentModalSlide);
+    });
+}
+
+// Go to specific enhanced modal slide
+function goToEnhancedModalSlide(slideIndex) {
+    const indicators = document.querySelectorAll('.gallery-modal-carousel-dot');
+    currentModalSlide = slideIndex;
+    updateEnhancedModalCarousel();
+    
+    // Restart auto-scroll
+    if (modalCarouselInterval) {
+        clearInterval(modalCarouselInterval);
+        startModalCarousel(indicators.length);
+    }
+}
+
+// Previous modal slide
+window.prevModalSlide = function() {
+    const indicators = document.querySelectorAll('.gallery-modal-carousel-dot');
+    currentModalSlide = currentModalSlide > 0 ? currentModalSlide - 1 : indicators.length - 1;
+    updateEnhancedModalCarousel();
+}
+
+// Next modal slide
+window.nextModalSlide = function() {
+    const indicators = document.querySelectorAll('.gallery-modal-carousel-dot');
+    currentModalSlide = (currentModalSlide + 1) % indicators.length;
+    updateEnhancedModalCarousel();
+}
+
+// Start modal carousel auto-scroll
+function startModalCarousel(totalSlides) {
+    if (modalCarouselInterval) {
+        clearInterval(modalCarouselInterval);
+    }
+    
+    if (totalSlides > 1) {
+        modalCarouselInterval = setInterval(() => {
+            currentModalSlide = (currentModalSlide + 1) % totalSlides;
+            updateEnhancedModalCarousel();
+        }, 4000); // Change slide every 4 seconds
+    }
+}
+
+// Stop modal carousel auto-scroll
+function stopModalCarousel() {
+    if (modalCarouselInterval) {
+        clearInterval(modalCarouselInterval);
+        modalCarouselInterval = null;
+    }
+}
+
+// Initialize gallery when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initializeEnhancedGallery();
+});
+
+// Helper functions for gallery stats and categories
+function getCategoryName(itemId) {
+    const categories = {
+        1: 'WELFARE',
+        2: 'CONSERVATION', 
+        3: 'EDUCATION',
+        4: 'RESCUE',
+        5: 'CELEBRATION',
+        6: 'ENVIRONMENT'
+    };
+    return categories[itemId] || 'ACTIVITY';
+}
+
+function getStatNumber(itemId) {
+    const stats = {
+        1: '500+',
+        2: '1000+',
+        3: '250+',
+        4: '50+',
+        5: '200+',
+        6: '∞'
+    };
+    return stats[itemId] || '100+';
+}
+
+function getStatLabel(itemId) {
+    const labels = {
+        1: 'CHILDREN HELPED',
+        2: 'BIRDS FED DAILY',
+        3: 'STUDENTS TRAINED',
+        4: 'ANIMALS RESCUED',
+        5: 'FAMILIES REACHED',
+        6: 'ANIMALS HELPED'
+    };
+    return labels[itemId] || 'BENEFICIARIES';
+}
+
+function getSecondStatNumber(itemId) {
+    const stats = {
+        1: '15',
+        2: '365',
+        3: '15',
+        4: '24/7',
+        5: '5',
+        6: '100+'
+    };
+    return stats[itemId] || '10';
+}
+
+function getSecondStatLabel(itemId) {
+    const labels = {
+        1: 'LOCATIONS',
+        2: 'DAYS A YEAR',
+        3: 'PARTNER SCHOOLS',
+        4: 'EMERGENCY RESPONSE',
+        5: 'FESTIVALS',
+        6: 'LOCATIONS'
+    };
+    return labels[itemId] || 'LOCATIONS';
+}
+
+function getThirdStatNumber(itemId) {
+    const stats = {
+        1: '95%',
+        2: '100%',
+        3: '95%',
+        4: '90%',
+        5: '100%',
+        6: '85%'
+    };
+    return stats[itemId] || '90%';
+}
+
+function getThirdStatLabel(itemId) {
+    const labels = {
+        1: 'SUCCESS RATE',
+        2: 'ORGANIC FEED',
+        3: 'SUCCESS RATE',
+        4: 'RECOVERY RATE',
+        5: 'SATISFACTION',
+        6: 'SURVIVAL RATE'
+    };
+    return labels[itemId] || 'SUCCESS RATE';
+}
+
+// Animal Friends World Interactions
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize the animals with default state
+    const animals = {
+        'pets': {
+            name: 'Buddy',
+            happiness: 20,
+            conversations: [
+                'Hi friend! I\'m Buddy! Can you help me find some water? I\'m very thirsty!',
+                'Thank you for the water! I feel much better now. Could I have some food too?',
+                'Woof! You\'re the best! I\'m so happy now!'
+            ],
+            facts: [
+                'Did you know? Dogs and cats need fresh water every day to stay healthy!',
+                'Did you know? Pets need regular exercise to stay happy and healthy!'
+            ],
+            currentStep: 0
+        },
+        'parrot': {
+            name: 'Rio',
+            happiness: 20,
+            conversations: [
+                'Squawk! Hello there! I\'m Rio! I need a safe place to rest. Can you help me?',
+                'Thank you for the shelter! I feel safer now. Could I have a perch to sit on?',
+                'Squawk! This is perfect! I\'m so happy in my new home!'
+            ],
+            facts: [
+                'Did you know? Parrots are among the smartest birds and can learn many words!',
+                'Did you know? Some parrots can live for over 80 years!'
+            ],
+            currentStep: 0
+        },
+        'earth': {
+            name: 'Earth',
+            happiness: 20,
+            conversations: [
+                'I\'m Earth, home to all animals! I need your help to stay clean and healthy!',
+                'Thank you for planting a tree! That helps me breathe. Can you clean up some trash too?',
+                'You\'re amazing! When you help keep me clean, all animals have a better home!'
+            ],
+            facts: [
+                'Did you know? Planting just one tree helps provide oxygen and homes for many animals!',
+                'Did you know? Picking up trash helps keep animals safe from getting hurt!'
+            ],
+            currentStep: 0
+        },
+        'water': {
+            name: 'Droplet',
+            happiness: 20,
+            conversations: [
+                'Splash! I\'m Droplet! Can you help find 3 places to save water?',
+                'You found one way to save water! Can you find two more?',
+                'You found all three ways to save water! You\'re a water-saving hero!'
+            ],
+            facts: [
+                'Did you know? Turning off the tap while brushing your teeth saves lots of water!',
+                'Did you know? Many animals need clean water to survive!'
+            ],
+            currentStep: 0,
+            dropsFound: 0
+        },
+        'bird-letter': {
+            name: 'Chirpy',
+            happiness: 20,
+            conversations: [
+                'Tweet! I\'m Chirpy! I have a special letter for you! Click to read it!',
+                'Thank you for reading my letter! You\'ve helped all my animal friends!',
+                'Tweet! You\'ve earned all your helper badges! You\'re a true animal friend!'
+            ],
+            facts: [
+                'Did you know? Small birds like me need birdhouses to stay safe!',
+                'Did you know? Leaving out water for birds helps us during hot summer days!'
+            ],
+            currentStep: 0
+        }
+    };
+
+    // Set up event listeners for all help buttons
+    document.querySelectorAll('.help-button').forEach(button => {
+        button.addEventListener('click', function () {
+            const action = this.getAttribute('data-action');
+            const animalCard = this.closest('.animal-friend-card');
+            const animalType = animalCard.getAttribute('data-animal');
+            const animal = animals[animalType];
+
+            // Update the animal's state based on the action
+            handleAnimalInteraction(animalType, action);
         });
     });
-    
-    // Water drops game
-    const waterDrops = document.querySelectorAll('.water-drop');
-    waterDrops.forEach(drop => {
-        drop.addEventListener('click', function() {
+
+    // Set up event listeners for water drops
+    document.querySelectorAll('.water-drop').forEach(drop => {
+        drop.addEventListener('click', function () {
+            const dropNumber = this.getAttribute('data-drop');
+            const animal = animals['water'];
+
             if (!this.classList.contains('found')) {
                 this.classList.add('found');
-                const card = this.closest('.animal-friend-card');
-                updateHappiness(card, 30);
-                
-                // Check if all drops are found
-                const allDrops = card.querySelectorAll('.water-drop');
-                const foundDrops = card.querySelectorAll('.water-drop.found');
-                if (foundDrops.length === allDrops.length) {
-                    earnBadge('water-helper');
-                    showFactBubble(card);
+                animal.dropsFound++;
+
+                // Update happiness and conversation based on drops found
+                if (animal.dropsFound === 1) {
+                    updateAnimalState('water', 40, 1);
+                } else if (animal.dropsFound === 2) {
+                    updateAnimalState('water', 70, 1);
+                } else if (animal.dropsFound === 3) {
+                    updateAnimalState('water', 100, 2);
+                    awardBadge('water-helper');
                 }
             }
         });
     });
-}
 
-function handleAnimalHelp(animal, action, card) {
-    const happinessIncrease = 25;
-    updateHappiness(card, happinessIncrease);
-    
-    // Show fact bubble
-    showFactBubble(card);
-    
-    // Add celebration animation
-    card.classList.add('celebration');
-    setTimeout(() => card.classList.remove('celebration'), 3000);
-    
-    // Earn badges based on actions
-    const badgeMap = {
-        'give-water': 'water-helper',
-        'give-food': 'animal-friend',
-        'give-shelter': 'shelter-provider',
-        'give-perch': 'shelter-provider',
-        'plant-tree': 'earth-protector',
-        'clean-up': 'earth-protector',
-        'read-letter': 'animal-friend'
-    };
-    
-    if (badgeMap[action]) {
-        earnBadge(badgeMap[action]);
-    }
-    
-    // Special actions
-    if (action === 'read-letter') {
-        const letterContent = card.querySelector('.letter-content');
-        if (letterContent) {
-            letterContent.classList.remove('hidden');
+    function handleAnimalInteraction(animalType, action) {
+        const animal = animals[animalType];
+
+        // Handle different actions for different animals
+        switch (animalType) {
+            case 'pets':
+                if (action === 'give-water' && animal.currentStep === 0) {
+                    updateAnimalState(animalType, 60, 1);
+                } else if (action === 'give-food' && animal.currentStep === 1) {
+                    updateAnimalState(animalType, 100, 2);
+                    awardBadge('animal-friend');
+                }
+                break;
+
+            case 'parrot':
+                if (action === 'give-shelter' && animal.currentStep === 0) {
+                    updateAnimalState(animalType, 60, 1);
+                } else if (action === 'give-perch' && animal.currentStep === 1) {
+                    updateAnimalState(animalType, 100, 2);
+                    awardBadge('shelter-provider');
+                }
+                break;
+
+            case 'earth':
+                if (action === 'plant-tree' && animal.currentStep === 0) {
+                    updateAnimalState(animalType, 60, 1);
+                } else if (action === 'clean-up' && animal.currentStep === 1) {
+                    updateAnimalState(animalType, 100, 2);
+                    awardBadge('earth-protector');
+                }
+                break;
+
+            case 'bird-letter':
+                if (action === 'read-letter') {
+                    updateAnimalState(animalType, 100, 1);
+                    // Show the letter content
+                    const letterContent = document.querySelector(`[data-animal="bird-letter"] .letter-content`);
+                    letterContent.classList.remove('hidden');
+
+                    // Check if all badges are earned
+                    checkAllBadges();
+                }
+                break;
         }
     }
-}
 
-function updateHappiness(card, increase) {
-    const happinessFill = card.querySelector('.happiness-fill');
-    const currentWidth = parseInt(happinessFill.style.width) || 20;
-    const newWidth = Math.min(currentWidth + increase, 100);
-    
-    happinessFill.style.width = newWidth + '%';
-    
-    if (newWidth >= 100) {
-        card.classList.add('happy-animation');
-        setTimeout(() => card.classList.remove('happy-animation'), 1000);
-    }
-}
+    function updateAnimalState(animalType, happiness, conversationStep) {
+        const animal = animals[animalType];
+        animal.happiness = happiness;
+        animal.currentStep = conversationStep;
 
-function showFactBubble(card) {
-    const factBubble = card.querySelector('.fact-bubble');
-    if (factBubble) {
+        // Update the happiness meter
+        const happinessMeter = document.querySelector(`[data-animal="${animalType}"] .happiness-fill`);
+        happinessMeter.style.width = `${animal.happiness}%`;
+
+        // Update the conversation text
+        const speechBubble = document.querySelector(`[data-animal="${animalType}"] .speech-bubble p`);
+        speechBubble.textContent = animal.conversations[conversationStep];
+
+        // Show a fact
+        const factBubble = document.querySelector(`[data-animal="${animalType}"] .fact-bubble`);
         factBubble.classList.remove('hidden');
-        setTimeout(() => factBubble.classList.add('hidden'), 5000);
-    }
-}
 
-function earnBadge(badgeType) {
-    const badge = document.querySelector(`[data-badge="${badgeType}"]`);
-    if (badge && !badge.classList.contains('earned')) {
+        // Add visual effects for happiness
+        const animalCard = document.querySelector(`[data-animal="${animalType}"]`);
+        animalCard.classList.add('happy-animation');
+        setTimeout(() => {
+            animalCard.classList.remove('happy-animation');
+        }, 1000);
+    }
+
+    function awardBadge(badgeType) {
+        const badge = document.querySelector(`[data-badge="${badgeType}"]`);
         badge.classList.add('earned');
-        
-        // Check if all badges are earned
-        const allBadges = document.querySelectorAll('.badge');
-        const earnedBadges = document.querySelectorAll('.badge.earned');
-        
-        if (earnedBadges.length === allBadges.length) {
-            const badgesContainer = document.querySelector('.badges-container');
-            badgesContainer.classList.add('all-complete');
+
+        // Add celebration effect
+        badge.classList.add('celebration');
+        setTimeout(() => {
+            badge.classList.remove('celebration');
+        }, 3000);
+    }
+
+    function checkAllBadges() {
+        const allBadges = document.querySelectorAll('.badge.earned');
+        if (allBadges.length === 4) {
+            // All badges earned - show final celebration
+            document.querySelector('.badges-container').classList.add('all-complete');
+
+            // Update Chirpy's message
+            updateAnimalState('bird-letter', 100, 2);
         }
     }
+});
+
+// Modal functionality for products
+window.openModal = function (productId) {
+    const modal = document.getElementById(productId + 'Modal');
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
 }
 
-// Product modal functionality
-function openModal(productId) {
+window.closeModal = function (productId) {
     const modal = document.getElementById(productId + 'Modal');
-    if (modal) {
-        modal.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-    }
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
 }
 
-function closeModal(productId) {
-    const modal = document.getElementById(productId + 'Modal');
-    if (modal) {
-        modal.style.display = 'none';
+// Close modal when clicking outside
+window.onclick = function (event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
         document.body.style.overflow = 'auto';
     }
 }
 
-function selectColor(colorElement) {
-    // Remove selected class from all color options
-    const colorOptions = colorElement.parentElement.querySelectorAll('.color-option');
+// Color picker functionality
+window.selectColor = function (element) {
+    // Remove selected class from all color options in the same modal
+    const colorOptions = element.parentNode.querySelectorAll('.color-option');
     colorOptions.forEach(option => option.classList.remove('selected'));
-    
+
     // Add selected class to clicked option
-    colorElement.classList.add('selected');
+    element.classList.add('selected');
 }
 
-// Initialize everything when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Set initial language from localStorage or browser detection
-    const savedLanguage = localStorage.getItem('preferredLanguage');
-    if (savedLanguage && ['en', 'hi', 'gu'].includes(savedLanguage)) {
-        currentLanguage = savedLanguage;
-    } else {
-        currentLanguage = detectUserLanguage();
-    }
-    
-    // Update language button
-    const languageNames = { en: 'English', hi: 'हिंदी', gu: 'ગુજરાતી' };
-    document.querySelector('.current-language').textContent = languageNames[currentLanguage];
-    
-    // Load content
-    updateStaticContent();
-    loadHeroContent();
-    loadGalleryData();
-    
-    // Initialize animal friends
-    initializeAnimalFriends();
-    
-    // Show language prompt if needed
-    showLanguagePrompt();
-    
-    // Language switcher event listeners
+// Language Switcher JavaScript
+document.addEventListener('DOMContentLoaded', function () {
+    // Language dictionaries
+    const translations = {
+        'hi': {
+            'hero-title': 'जेवी_हेल्प',
+            'hero-slogan': 'हील हेल्प प्रोटेक्ट',
+            'section-title': 'श्री जयवीर जीवदया ग्रुप द्वारा परोपकारी गतिविधियां',
+            'winter-care': 'सर्दी की देखभाल',
+            'winter-desc': 'सर्दी के मौसम में वंचित बच्चों को स्वेटर और कंबल का वितरण।',
+            'festival-joy': 'त्योहार की खुशी',
+            'festival-desc': 'दिवाली त्योहार के दौरान बच्चों को मिठाई और नाश्ते का वितरण।',
+            'animal-welfare': 'पशु कल्याण',
+            'animal-desc': 'गर्मियों के दौरान जानवरों और पक्षियों को हाइड्रेटेड रखने के लिए पानी के कटोरे का मुफ्त वितरण।',
+            'wildlife-conservation': 'वन्यजीव संरक्षण',
+            'wildlife-desc': 'वन्यजीव संरक्षण को प्रोत्साहित करने के लिए गौरैया के लिए पक्षीघरों का मुफ्त वितरण।',
+            'daily-feeding': 'दैनिक भोजन',
+            'daily-desc': 'पक्षियों को अनाज का दैनिक खिलाना।',
+            'educational-support': 'शैक्षिक सहायता',
+            'educational-desc': 'शैक्षिक सहायता की आवश्यकता वाले वंचित बच्चों को मुफ्त नोटबुक का प्रावधान।',
+            'animal-rescue': 'पशु बचाव',
+            'animal-rescue-desc': 'संकटग्रस्त जानवरों, पक्षियों और सांपों का बचाव और सुरक्षित पुनर्स्थापना।',
+            'year-round-support': 'वर्ष भर सहायता',
+            'year-round-desc': 'पशु कल्याण को बढ़ावा देने के लिए पक्षीघरों, पक्षी फीडर और पानी के कटोरे का 365 दिन वितरण।',
+        },
+        'gu': {
+            'hero-title': 'જેવી_હેલ્પ',
+            'hero-slogan': 'હીલ હેલ્પ પ્રોટેક્ટ',
+            'section-title': 'શ્રી જયવીર જીવદયા ગ્રુપ દ્વારા પરોપકારી પ્રવૃત્તિઓ',
+            'winter-care': 'શિયાળાની સંભાળ',
+            'winter-desc': 'શિયાળાની ઋતુ દરમિયાન વંચિત બાળકોને સ્વેટર અને ધાબળાનું વિતરણ.',
+            'festival-joy': 'તહેવારની ખુશી',
+            'festival-desc': 'દિવાળી તહેવાર દરમિયાન બાળકોને મીઠાઈ અને નાસ્તાનું વિતરણ.',
+            'animal-welfare': 'પશુ કલ્યાણ',
+            'animal-desc': 'ઉનાળા દરમિયાન પ્રાણીઓ અને પક્ષીઓને હાઇડ્રેટેડ રાખવા માટે પાણીના વાટકાનું મફત વિતરણ.',
+            'wildlife-conservation': 'વન્યજીવન સંરક્ષણ',
+            'wildlife-desc': 'વન્યજીવન સંરક્ષણને પ્રોત્સાહન આપવા માટે ચકલીઓ માટે પક્ષીઘરનું મફત વિતરણ.',
+            'daily-feeding': 'રોજનું ખવડાવવું',
+            'daily-desc': 'પક્ષીઓને અનાજનું દૈનિક ખવડાવવું.',
+            'educational-support': 'શૈક્ષણિક સહાય',
+            'educational-desc': 'શૈક્ષણિક સહાયની જરૂર હોય તેવા વંચિત બાળકોને મફત નોટબુકની જોગવાઈ.',
+            'animal-rescue': 'પશુ બચાવ',
+            'animal-rescue-desc': 'સંકટમાં પડેલા પ્રાણીઓ, પક્ષીઓ અને સાપનું બચાવ અને સુરક્ષિત પુનઃસ્થાપન.',
+            'year-round-support': 'વર્ષભર સહાય',
+            'year-round-desc': 'પશુ કલ્યાણને પ્રોત્સાહન આપવા માટે પક્ષીઘર, પક્ષી ફીડર અને પાણીના વાટકાનું 365-દિવસનું વિતરણ.',
+        }
+    };
+
+    // DOM Elements
     const languageToggle = document.getElementById('language-toggle');
     const languageMenu = document.getElementById('language-menu');
     const languageOptions = document.querySelectorAll('.language-option');
-    
-    languageToggle.addEventListener('click', function() {
+    const currentLanguageDisplay = document.querySelector('.current-language');
+    const languagePrompt = document.getElementById('language-prompt');
+    const promptSwitchBtn = document.getElementById('prompt-switch');
+    const promptCloseBtn = document.getElementById('prompt-close');
+
+    // Add pulse effect to language toggle initially
+    languageToggle.classList.add('pulse');
+    setTimeout(() => {
+        languageToggle.classList.remove('pulse');
+    }, 3000);
+
+    // Show/hide language menu
+    languageToggle.addEventListener('click', function () {
         languageMenu.classList.toggle('show');
     });
-    
+
+    // Handle language selection
     languageOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            const lang = this.dataset.lang;
-            switchLanguage(lang);
+        option.addEventListener('click', function () {
+            const language = this.getAttribute('data-lang');
+            switchLanguageGlobally(language);
+            currentLanguageDisplay.textContent = this.textContent;
             languageMenu.classList.remove('show');
+
+            // Show animation feedback
+            languageToggle.classList.add('pulse');
+            setTimeout(() => {
+                languageToggle.classList.remove('pulse');
+            }, 1000);
         });
     });
-    
-    // Language prompt event listeners
-    const promptSwitch = document.getElementById('prompt-switch');
-    const promptClose = document.getElementById('prompt-close');
-    
-    if (promptSwitch) {
-        promptSwitch.addEventListener('click', function() {
-            const detectedLang = detectUserLanguage();
-            switchLanguage(detectedLang);
-        });
-    }
-    
-    if (promptClose) {
-        promptClose.addEventListener('click', hideLanguagePrompt);
-    }
-    
-    // Gallery controls event listeners
-    const searchInput = document.getElementById('gallery-search-input');
-    const filterButtons = document.querySelectorAll('.filter-btn');
-    const sortSelect = document.getElementById('gallery-sort-select');
-    
-    if (searchInput) {
-        searchInput.addEventListener('input', filterGallery);
-    }
-    
-    filterButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            filterButtons.forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-            filterGallery();
-        });
-    });
-    
-    if (sortSelect) {
-        sortSelect.addEventListener('change', filterGallery);
-    }
-    
-    // Close modals when clicking outside
-    window.addEventListener('click', function(event) {
-        if (event.target.classList.contains('modal')) {
-            event.target.style.display = 'none';
-            document.body.style.overflow = 'auto';
-        }
-        
-        if (event.target.classList.contains('gallery-modal')) {
-            closeGalleryModal();
-        }
-        
-        // Close language menu when clicking outside
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function (event) {
         if (!event.target.closest('.language-switcher')) {
             languageMenu.classList.remove('show');
         }
     });
-    
-    // Keyboard navigation for modals
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            // Close any open modals
-            const openModals = document.querySelectorAll('.modal[style*="block"], .gallery-modal[style*="block"]');
-            openModals.forEach(modal => {
-                if (modal.classList.contains('gallery-modal')) {
-                    closeGalleryModal();
-                } else {
-                    modal.style.display = 'none';
-                    document.body.style.overflow = 'auto';
-                }
+
+    // Add data-lang-key attributes to elements
+    function initTranslatableElements() {
+        const elementsToTranslate = [
+            { selector: '.hero-title', key: 'hero-title' },
+            { selector: '.hero-slogan', key: 'hero-slogan' },
+            { selector: '.activities-section .section-title', key: 'section-title' },
+            { selector: '.activity-card:nth-child(1) .activity-title', key: 'winter-care' },
+            { selector: '.activity-card:nth-child(1) .activity-description', key: 'winter-desc' },
+            { selector: '.activity-card:nth-child(2) .activity-title', key: 'festival-joy' },
+            { selector: '.activity-card:nth-child(2) .activity-description', key: 'festival-desc' },
+            { selector: '.activity-card:nth-child(3) .activity-title', key: 'animal-welfare' },
+            { selector: '.activity-card:nth-child(3) .activity-description', key: 'animal-desc' },
+            { selector: '.activity-card:nth-child(4) .activity-title', key: 'wildlife-conservation' },
+            { selector: '.activity-card:nth-child(4) .activity-description', key: 'wildlife-desc' },
+            { selector: '.activity-card:nth-child(5) .activity-title', key: 'daily-feeding' },
+            { selector: '.activity-card:nth-child(5) .activity-description', key: 'daily-desc' },
+            { selector: '.activity-card:nth-child(6) .activity-title', key: 'educational-support' },
+            { selector: '.activity-card:nth-child(6) .activity-description', key: 'educational-desc' },
+            { selector: '.activity-card:nth-child(7) .activity-title', key: 'animal-rescue' },
+            { selector: '.activity-card:nth-child(7) .activity-description', key: 'animal-rescue-desc' },
+            { selector: '.activity-card:nth-child(8) .activity-title', key: 'year-round-support' },
+            { selector: '.activity-card:nth-child(8) .activity-description', key: 'year-round-desc' },
+        ];
+
+        elementsToTranslate.forEach(item => {
+            const elements = document.querySelectorAll(item.selector);
+            elements.forEach(element => {
+                element.setAttribute('data-lang-key', item.key);
             });
-            
-            // Close language menu
-            languageMenu.classList.remove('show');
-        }
-        
-        // Arrow key navigation for modal carousel
-        if (document.getElementById('gallery-modal') && document.getElementById('gallery-modal').style.display === 'block') {
-            if (event.key === 'ArrowLeft') {
-                changeModalSlide(-1);
-            } else if (event.key === 'ArrowRight') {
-                changeModalSlide(1);
-            }
-        }
+        });
+    }
+
+    initTranslatableElements();
+
+    // Show language prompt after 10 seconds
+    setTimeout(() => {
+        showLanguagePrompt();
+    }, 10000);
+
+    function showLanguagePrompt() {
+        languagePrompt.classList.add('show');
+        languageToggle.classList.add('pulse');
+        setTimeout(() => {
+            languageToggle.classList.remove('pulse');
+        }, 3000);
+    }
+
+    // Prompt buttons
+    promptSwitchBtn.addEventListener('click', function () {
+        languageMenu.classList.add('show');
+        languagePrompt.classList.remove('show');
+    });
+
+    promptCloseBtn.addEventListener('click', function () {
+        languagePrompt.classList.remove('show');
     });
 });
-
-// Expose functions to global scope for onclick handlers
-window.openModal = openModal;
-window.closeModal = closeModal;
-window.selectColor = selectColor;
-window.openGalleryModal = openGalleryModal;
-window.closeGalleryModal = closeGalleryModal;
-window.changeModalSlide = changeModalSlide;
-window.goToModalSlide = goToModalSlide;
-window.changePage = changePage;
