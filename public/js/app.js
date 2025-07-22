@@ -15,6 +15,16 @@ function escapeTemplateString(str) {
              .replace(/\\/g, '\\\\');
 }
 
+// Utility function to escape characters for HTML attributes
+function escapeHtmlAttribute(str) {
+    if (!str || typeof str !== 'string') return '';
+    return str.replace(/"/g, '&quot;')
+             .replace(/'/g, '&#39;')
+             .replace(/</g, '&lt;')
+             .replace(/>/g, '&gt;')
+             .replace(/&/g, '&amp;');
+}
+
 // Language detection and management
 function detectUserLanguage() {
     const browserLang = navigator.language || navigator.userLanguage;
@@ -205,7 +215,7 @@ function renderGallery() {
         return `
             <div class="gallery-item" onclick="openGalleryModal(${item.id})">
                 <div class="gallery-item-image-container">
-                    <img src="${escapeTemplateString(item.image)}" alt="${title}" class="gallery-item-image" loading="lazy">
+                    <img src="${escapeHtmlAttribute(item.image)}" alt="${escapeHtmlAttribute(title)}" class="gallery-item-image" loading="lazy">
                     <div class="gallery-item-category">${category}</div>
                     <div class="gallery-item-stats">
                         <i class="fas fa-users"></i>
@@ -340,7 +350,7 @@ function openGalleryModal(itemId) {
                     <div class="gallery-modal-carousel-container">
                         ${images.map((img, index) => `
                             <div class="gallery-modal-carousel-slide ${index === 0 ? 'active' : ''}">
-                                <img src="${img}" alt="${title} - Image ${index + 1}" loading="lazy">
+                                <img src="${escapeHtmlAttribute(img)}" alt="${escapeHtmlAttribute(title)} - Image ${index + 1}" loading="lazy">
                             </div>
                         `).join('')}
                     </div>
