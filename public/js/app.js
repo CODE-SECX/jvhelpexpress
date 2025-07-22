@@ -7,6 +7,14 @@ const itemsPerPage = 6;
 let currentModalSlide = 0;
 let modalSlideInterval = null;
 
+// Utility function to escape characters that can break JavaScript template literals
+function escapeTemplateString(str) {
+    if (!str || typeof str !== 'string') return '';
+    return str.replace(/`/g, '\\`')
+             .replace(/\${/g, '\\${')
+             .replace(/\\/g, '\\\\');
+}
+
 // Language detection and management
 function detectUserLanguage() {
     const browserLang = navigator.language || navigator.userLanguage;
@@ -189,15 +197,15 @@ function renderGallery() {
     const pageData = filteredGalleryData.slice(startIndex, endIndex);
     
     gridElement.innerHTML = pageData.map(item => {
-        const title = item[`title_${currentLanguage}`] || item.title_en || 'Activity';
-        const description = item[`description_${currentLanguage}`] || item.description_en || 'Description';
-        const category = item[`category_${currentLanguage}`] || item.category_en || 'General';
-        const quote = item[`quote_${currentLanguage}`] || item.quote_en || '';
+        const title = escapeTemplateString(item[`title_${currentLanguage}`] || item.title_en || 'Activity');
+        const description = escapeTemplateString(item[`description_${currentLanguage}`] || item.description_en || 'Description');
+        const category = escapeTemplateString(item[`category_${currentLanguage}`] || item.category_en || 'General');
+        const quote = escapeTemplateString(item[`quote_${currentLanguage}`] || item.quote_en || '');
         
         return `
             <div class="gallery-item" onclick="openGalleryModal(${item.id})">
                 <div class="gallery-item-image-container">
-                    <img src="${item.image}" alt="${title}" class="gallery-item-image" loading="lazy">
+                    <img src="${escapeTemplateString(item.image)}" alt="${title}" class="gallery-item-image" loading="lazy">
                     <div class="gallery-item-category">${category}</div>
                     <div class="gallery-item-stats">
                         <i class="fas fa-users"></i>
@@ -284,12 +292,12 @@ function openGalleryModal(itemId) {
     if (!item) return;
     
     const modal = document.getElementById('gallery-modal') || createGalleryModal();
-    const title = item[`title_${currentLanguage}`] || item.title_en || 'Activity';
-    const description = item[`description_${currentLanguage}`] || item.description_en || 'Description';
-    const quote = item[`quote_${currentLanguage}`] || item.quote_en || '';
+    const title = escapeTemplateString(item[`title_${currentLanguage}`] || item.title_en || 'Activity');
+    const description = escapeTemplateString(item[`description_${currentLanguage}`] || item.description_en || 'Description');
+    const quote = escapeTemplateString(item[`quote_${currentLanguage}`] || item.quote_en || '');
     
     // Prepare images array - check for both naming conventions
-    let images = [item.image];
+    let images = [escapeTemplateString(item.image)];
     
     // Check for additional images with both naming conventions
     for (let i = 1; i <= 5; i++) {
@@ -297,15 +305,15 @@ function openGalleryModal(itemId) {
         const imageLMCaps = item[`image_LM_${i}`];
         
         if (imageLM) {
-            images.push(imageLM);
+            images.push(escapeTemplateString(imageLM));
         } else if (imageLMCaps) {
-            images.push(imageLMCaps);
+            images.push(escapeTemplateString(imageLMCaps));
         }
     }
     
     // If we have the images array from the item, use that instead
     if (item.images && Array.isArray(item.images) && item.images.length > 1) {
-        images = item.images;
+        images = item.images.map(img => escapeTemplateString(img));
     }
     
     // Remove duplicates and filter out empty/null values
@@ -314,9 +322,9 @@ function openGalleryModal(itemId) {
     // If we only have one image, add some sample images for demonstration
     if (images.length === 1) {
         const sampleImages = [
-            'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=800',
-            'https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=800',
-            'https://images.pexels.com/photos/1805164/pexels-photo-1805164.jpeg?auto=compress&cs=tinysrgb&w=800'
+            escapeTemplateString('https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=800'),
+            escapeTemplateString('https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=800'),
+            escapeTemplateString('https://images.pexels.com/photos/1805164/pexels-photo-1805164.jpeg?auto=compress&cs=tinysrgb&w=800')
         ];
         images = [images[0], ...sampleImages.slice(0, 3)];
     }
@@ -374,7 +382,7 @@ function openGalleryModal(itemId) {
                         </div>
                         <div class="gallery-modal-meta-item">
                             <div class="gallery-modal-meta-label">Category</div>
-                            <div class="gallery-modal-meta-value">${item[`category_${currentLanguage}`] || item.category_en}</div>
+                            <div class="gallery-modal-meta-value">${escapeTemplateString(item[`category_${currentLanguage}`] || item.category_en)}</div>
                         </div>
                     </div>
                 </div>
