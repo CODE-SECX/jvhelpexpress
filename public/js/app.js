@@ -72,11 +72,23 @@ function switchLanguageGlobally(newLanguage) {
     // Update other content sections
     updateAllContentSections(newLanguage);
     
+    // Update gallery language
+    updateGalleryLanguage(newLanguage);
+    
     // Update language switcher display
     updateLanguageDisplay(newLanguage);
     
     // Load products in new language
     loadProducts(newLanguage);
+    
+    // Reload activities gallery in new language
+    loadActivitiesGallery(newLanguage).then(activities => {
+        if (activities.length > 0) {
+            allGalleryItems = activities;
+            filteredGalleryItems = [...allGalleryItems];
+            applyFiltersAndSort();
+        }
+    });
 }
 
 // Update all content sections with new language
@@ -391,7 +403,629 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Load products from API
     loadProducts();
+    
+    // Initialize gallery
+    initializeEnhancedGallery();
 });
+
+// Enhanced Activities Gallery functionality
+let currentPage = 1;
+let itemsPerPage = 6;
+let allGalleryItems = [];
+let filteredGalleryItems = [];
+let currentFilter = 'all';
+let currentSort = 'date-desc';
+let searchQuery = '';
+
+// Modal carousel variables
+let currentModalSlide = 0;
+let modalCarouselInterval = null;
+
+// Load activities gallery from API
+async function loadActivitiesGallery(language = 'en') {
+    try {
+        const response = await fetch(`/api/activities-gallery?lang=${language}`);
+        const result = await response.json();
+        
+        if (result.error) {
+            console.warn('Failed to load activities gallery:', result.error);
+            return [];
+        }
+        
+        return result.data;
+    } catch (error) {
+        console.error('Failed to load activities gallery:', error);
+        return [];
+    }
+}
+
+// Initialize enhanced gallery
+async function initializeEnhancedGallery() {
+    showLoading();
+    
+    try {
+        // Load activities from API instead of using hardcoded data
+        const activities = await loadActivitiesGallery(currentLanguage);
+        
+        if (activities.length > 0) {
+            allGalleryItems = activities;
+            filteredGalleryItems = [...allGalleryItems];
+        } else {
+            // Fallback to empty array if API fails
+            allGalleryItems = [];
+            filteredGalleryItems = [];
+        }
+        
+        setupGalleryEventListeners();
+        renderGallery();
+    } catch (error) {
+        console.error('Failed to initialize gallery:', error);
+        allGalleryItems = [];
+        filteredGalleryItems = [];
+        renderGallery();
+    } finally {
+        hideLoading();
+    }
+}
+
+// Setup event listeners for gallery controls
+function setupGalleryEventListeners() {
+    // Search functionality
+    const searchInput = document.getElementById('gallery-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(handleSearch, 300));
+    }
+    
+    // Filter buttons
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', handleFilter);
+    });
+    
+    // Sort dropdown
+    const sortSelect = document.getElementById('gallery-sort-select');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', handleSort);
+    }
+}
+
+// Handle search functionality
+function handleSearch(event) {
+    searchQuery = event.target.value.toLowerCase();
+    applyFiltersAndSort();
+}
+
+// Handle filter functionality
+function handleFilter(event) {
+    // Update active filter button
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    currentFilter = event.target.dataset.filter;
+    currentPage = 1; // Reset to first page
+    applyFiltersAndSort();
+}
+
+// Handle sort functionality
+function handleSort(event) {
+    currentSort = event.target.value;
+    currentPage = 1; // Reset to first page
+    applyFiltersAndSort();
+}
+
+// Apply filters and sorting
+function applyFiltersAndSort() {
+    showLoading();
+    
+    // Filter items
+    filteredGalleryItems = allGalleryItems.filter(item => {
+        // Convert filter to uppercase to match database categories
+        const filterCategory = currentFilter.toUpperCase();
+        const matchesFilter = currentFilter === 'all' || item.category_en === filterCategory;
+        const matchesSearch = searchQuery === '' || 
+            item.title_en.toLowerCase().includes(searchQuery) ||
+            item.description_en.toLowerCase().includes(searchQuery);
+        
+        return matchesFilter && matchesSearch;
+    });
+    
+    // Sort items
+    filteredGalleryItems.sort((a, b) => {
+        switch (currentSort) {
+            case 'date-desc':
+                return new Date(b.created_at || b.date) - new Date(a.created_at || a.date);
+            case 'date-asc':
+                return new Date(a.created_at || a.date) - new Date(b.created_at || b.date);
+            case 'title-asc':
+                return a.title_en.localeCompare(b.title_en);
+            case 'title-desc':
+                return b.title_en.localeCompare(a.title_en);
+            default:
+                return (a.display_order || 0) - (b.display_order || 0);
+        }
+    });
+    
+    setTimeout(() => {
+        renderGallery();
+        hideLoading();
+    }, 500); // Simulate loading time
+}
+
+// Render gallery items
+function renderGallery() {
+    const galleryGrid = document.getElementById('gallery-grid');
+    const noResults = document.getElementById('gallery-no-results');
+    
+    if (!galleryGrid) return;
+    
+    // Clear existing content
+    galleryGrid.innerHTML = '';
+    
+    // Check if there are results
+    if (filteredGalleryItems.length === 0) {
+        noResults.classList.remove('hidden');
+        return;
+    } else {
+        noResults.classList.add('hidden');
+    }
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(filteredGalleryItems.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentItems = filteredGalleryItems.slice(startIndex, endIndex);
+    
+    // Create gallery items
+    currentItems.forEach(item => {
+        const galleryItem = createEnhancedGalleryItem(item);
+        galleryGrid.appendChild(galleryItem);
+    });
+    
+    // Update pagination
+    renderPagination(totalPages);
+    
+    // Create modal if it doesn't exist
+    createEnhancedGalleryModal();
+}
+
+// Create enhanced gallery item element
+function createEnhancedGalleryItem(item) {
+    const galleryItem = document.createElement('div');
+    galleryItem.className = 'gallery-item';
+    galleryItem.onclick = () => openEnhancedGalleryModal(item);
+    
+    const lang = currentLanguage || 'en';
+    const title = item[`title_${lang}`] || item.title_en;
+    const description = item[`description_${lang}`] || item.description_en;
+    const category = item[`category_${lang}`] || item.category_en;
+    
+    galleryItem.innerHTML = `
+        <div class="gallery-item-image-container">
+            <img src="${item.image}" alt="${title}" class="gallery-item-image" loading="lazy">
+            <div class="gallery-item-category">${category}</div>
+            <div class="gallery-item-stats">
+                <i class="fas fa-users"></i>
+                ${Object.values(item.stats)[0]}
+            </div>
+        </div>
+        <div class="gallery-item-content">
+            <h3 class="gallery-item-title">${title}</h3>
+            <p class="gallery-item-description">${description.substring(0, 120)}...</p>
+            <div class="gallery-item-meta">
+                <div class="gallery-item-date">
+                    <i class="fas fa-calendar"></i>
+                    ${item.date}
+                </div>
+                <div class="gallery-item-actions">
+                    <button class="action-btn" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="action-btn" title="Share">
+                        <i class="fas fa-share"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="gallery-item-overlay">
+            <i class="fas fa-search-plus"></i>
+            <div class="overlay-text">View Details</div>
+            <div class="overlay-subtitle">Click to explore</div>
+        </div>
+    `;
+    
+    return galleryItem;
+}
+
+// Render pagination
+function renderPagination(totalPages) {
+    const paginationContainer = document.getElementById('gallery-pagination');
+    if (!paginationContainer || totalPages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '';
+    
+    // Previous button
+    paginationHTML += `
+        <button class="pagination-btn ${currentPage === 1 ? 'disabled' : ''}" 
+                onclick="changePage(${currentPage - 1})" 
+                ${currentPage === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    `;
+    
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+            paginationHTML += `
+                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" 
+                        onclick="changePage(${i})">
+                    ${i}
+                </button>
+            `;
+        } else if (i === currentPage - 2 || i === currentPage + 2) {
+            paginationHTML += '<span class="pagination-ellipsis">...</span>';
+        }
+    }
+    
+    // Next button
+    paginationHTML += `
+        <button class="pagination-btn ${currentPage === totalPages ? 'disabled' : ''}" 
+                onclick="changePage(${currentPage + 1})" 
+                ${currentPage === totalPages ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    `;
+    
+    paginationContainer.innerHTML = paginationHTML;
+}
+
+// Change page
+function changePage(page) {
+    if (page < 1 || page > Math.ceil(filteredGalleryItems.length / itemsPerPage)) return;
+    
+    currentPage = page;
+    renderGallery();
+    
+    // Scroll to top of gallery
+    document.querySelector('.activities-gallery-section').scrollIntoView({ 
+        behavior: 'smooth' 
+    });
+}
+
+// Show loading state
+function showLoading() {
+    const loading = document.getElementById('gallery-loading');
+    const grid = document.getElementById('gallery-grid');
+    const noResults = document.getElementById('gallery-no-results');
+    
+    if (loading) loading.classList.remove('hidden');
+    if (grid) grid.style.opacity = '0.5';
+    if (noResults) noResults.classList.add('hidden');
+}
+
+// Hide loading state
+function hideLoading() {
+    const loading = document.getElementById('gallery-loading');
+    const grid = document.getElementById('gallery-grid');
+    
+    if (loading) loading.classList.add('hidden');
+    if (grid) grid.style.opacity = '1';
+}
+
+// Debounce function for search
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Create enhanced gallery modal
+function createEnhancedGalleryModal() {
+    const existingModal = document.getElementById('gallery-modal');
+    if (existingModal) return;
+    
+    const modal = document.createElement('div');
+    modal.id = 'gallery-modal';
+    modal.className = 'gallery-modal';
+    
+    modal.innerHTML = `
+        <div class="gallery-modal-content">
+            <div class="gallery-modal-header">
+                <h2 class="gallery-modal-title" id="gallery-modal-title">Activity Details</h2>
+                <button class="gallery-modal-close" onclick="closeEnhancedGalleryModal()">&times;</button>
+            </div>
+            <div class="gallery-modal-body">
+                <div id="gallery-modal-carousel" class="gallery-modal-carousel">
+                    <div id="gallery-modal-carousel-container" class="gallery-modal-carousel-container">
+                        <!-- Carousel slides will be inserted here -->
+                    </div>
+                    <button class="gallery-modal-carousel-nav prev" onclick="prevModalSlide()">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="gallery-modal-carousel-nav next" onclick="nextModalSlide()">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <div id="gallery-modal-carousel-indicators" class="gallery-modal-carousel-indicators">
+                        <!-- Indicators will be inserted here -->
+                    </div>
+                </div>
+                <div class="gallery-modal-details">
+                    <div id="gallery-modal-quote" class="gallery-modal-quote"></div>
+                    <p id="gallery-modal-description" class="gallery-modal-description"></p>
+                    <div class="gallery-modal-meta" id="gallery-modal-meta">
+                        <!-- Meta items will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            closeEnhancedGalleryModal();
+        }
+    });
+}
+
+// Open enhanced gallery modal
+function openEnhancedGalleryModal(item) {
+    const modal = document.getElementById('gallery-modal');
+    const title = document.getElementById('gallery-modal-title');
+    const quote = document.getElementById('gallery-modal-quote');
+    const description = document.getElementById('gallery-modal-description');
+    const meta = document.getElementById('gallery-modal-meta');
+    
+    if (!modal || !title || !quote || !description || !meta) return;
+    
+    const lang = currentLanguage || 'en';
+    
+    title.textContent = item[`title_${lang}`] || item.title_en;
+    quote.textContent = item[`quote_${lang}`] || item.quote_en || '';
+    description.textContent = item[`description_${lang}`] || item.description_en;
+    
+    // Create meta items
+    let metaHTML = '';
+    metaHTML += `
+        <div class="gallery-modal-meta-item">
+            <div class="gallery-modal-meta-label">Date</div>
+            <div class="gallery-modal-meta-value">${item.date}</div>
+        </div>
+        <div class="gallery-modal-meta-item">
+            <div class="gallery-modal-meta-label">Category</div>
+            <div class="gallery-modal-meta-value">${item[`category_${lang}`] || item.category_en}</div>
+        </div>
+    `;
+    
+    // Add stats
+    Object.entries(item.stats).forEach(([key, value]) => {
+        metaHTML += `
+            <div class="gallery-modal-meta-item">
+                <div class="gallery-modal-meta-label">${key}</div>
+                <div class="gallery-modal-meta-value">${value}</div>
+            </div>
+        `;
+    });
+    
+    meta.innerHTML = metaHTML;
+    
+    // Create and start carousel
+    createEnhancedModalCarousel(item);
+    
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+// Close enhanced gallery modal
+window.closeEnhancedGalleryModal = function() {
+    const modal = document.getElementById('gallery-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        stopModalCarousel();
+    }
+}
+
+// Create enhanced modal carousel
+function createEnhancedModalCarousel(item) {
+    const carouselContainer = document.getElementById('gallery-modal-carousel-container');
+    const indicatorsContainer = document.getElementById('gallery-modal-carousel-indicators');
+    
+    if (!carouselContainer || !indicatorsContainer) return;
+    
+    // Clear existing content
+    carouselContainer.innerHTML = '';
+    indicatorsContainer.innerHTML = '';
+    
+    const images = item.images || [item.image];
+    
+    // Create slides
+    images.forEach((imageUrl, index) => {
+        const slide = document.createElement('div');
+        slide.className = 'gallery-modal-carousel-slide';
+        slide.innerHTML = `<img src="${imageUrl}" alt="Activity Image ${index + 1}" loading="lazy">`;
+        carouselContainer.appendChild(slide);
+        
+        // Create indicator
+        const indicator = document.createElement('div');
+        indicator.className = `gallery-modal-carousel-dot ${index === 0 ? 'active' : ''}`;
+        indicator.addEventListener('click', () => goToEnhancedModalSlide(index));
+        indicatorsContainer.appendChild(indicator);
+    });
+    
+    // Reset to first slide
+    currentModalSlide = 0;
+    updateEnhancedModalCarousel();
+    
+    // Start auto-scroll if multiple images
+    if (images.length > 1) {
+        startModalCarousel(images.length);
+    }
+}
+
+// Update enhanced modal carousel position
+function updateEnhancedModalCarousel() {
+    const carouselContainer = document.getElementById('gallery-modal-carousel-container');
+    const indicators = document.querySelectorAll('.gallery-modal-carousel-dot');
+    
+    if (carouselContainer) {
+        carouselContainer.style.transform = `translateX(-${currentModalSlide * 20}%)`;
+    }
+    
+    // Update indicators
+    indicators.forEach((indicator, index) => {
+        indicator.classList.toggle('active', index === currentModalSlide);
+    });
+}
+
+// Go to specific enhanced modal slide
+function goToEnhancedModalSlide(slideIndex) {
+    const indicators = document.querySelectorAll('.gallery-modal-carousel-dot');
+    currentModalSlide = slideIndex;
+    updateEnhancedModalCarousel();
+    
+    // Restart auto-scroll
+    if (modalCarouselInterval) {
+        clearInterval(modalCarouselInterval);
+        startModalCarousel(indicators.length);
+    }
+}
+
+// Previous modal slide
+window.prevModalSlide = function() {
+    const indicators = document.querySelectorAll('.gallery-modal-carousel-dot');
+    currentModalSlide = currentModalSlide > 0 ? currentModalSlide - 1 : indicators.length - 1;
+    updateEnhancedModalCarousel();
+}
+
+// Next modal slide
+window.nextModalSlide = function() {
+    const indicators = document.querySelectorAll('.gallery-modal-carousel-dot');
+    currentModalSlide = (currentModalSlide + 1) % indicators.length;
+    updateEnhancedModalCarousel();
+}
+
+// Start modal carousel auto-scroll
+function startModalCarousel(totalSlides) {
+    if (modalCarouselInterval) {
+        clearInterval(modalCarouselInterval);
+    }
+    
+    if (totalSlides > 1) {
+        modalCarouselInterval = setInterval(() => {
+            currentModalSlide = (currentModalSlide + 1) % totalSlides;
+            updateEnhancedModalCarousel();
+        }, 4000); // Change slide every 4 seconds
+    }
+}
+
+// Stop modal carousel auto-scroll
+function stopModalCarousel() {
+    if (modalCarouselInterval) {
+        clearInterval(modalCarouselInterval);
+        modalCarouselInterval = null;
+    }
+}
+
+// Initialize gallery when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initializeEnhancedGallery();
+});
+
+// Helper functions for gallery stats and categories
+function getCategoryName(itemId) {
+    const categories = {
+        1: 'WELFARE',
+        2: 'CONSERVATION', 
+        3: 'EDUCATION',
+        4: 'RESCUE',
+        5: 'CELEBRATION',
+        6: 'ENVIRONMENT'
+    };
+    return categories[itemId] || 'ACTIVITY';
+}
+
+function getStatNumber(itemId) {
+    const stats = {
+        1: '500+',
+        2: '1000+',
+        3: '250+',
+        4: '50+',
+        5: '200+',
+        6: '∞'
+    };
+    return stats[itemId] || '100+';
+}
+
+function getStatLabel(itemId) {
+    const labels = {
+        1: 'CHILDREN HELPED',
+        2: 'BIRDS FED DAILY',
+        3: 'STUDENTS TRAINED',
+        4: 'ANIMALS RESCUED',
+        5: 'FAMILIES REACHED',
+        6: 'ANIMALS HELPED'
+    };
+    return labels[itemId] || 'BENEFICIARIES';
+}
+
+function getSecondStatNumber(itemId) {
+    const stats = {
+        1: '15',
+        2: '365',
+        3: '15',
+        4: '24/7',
+        5: '5',
+        6: '100+'
+    };
+    return stats[itemId] || '10';
+}
+
+function getSecondStatLabel(itemId) {
+    const labels = {
+        1: 'LOCATIONS',
+        2: 'DAYS A YEAR',
+        3: 'PARTNER SCHOOLS',
+        4: 'EMERGENCY RESPONSE',
+        5: 'FESTIVALS',
+        6: 'LOCATIONS'
+    };
+    return labels[itemId] || 'LOCATIONS';
+}
+
+function getThirdStatNumber(itemId) {
+    const stats = {
+        1: '95%',
+        2: '100%',
+        3: '95%',
+        4: '90%',
+        5: '100%',
+        6: '85%'
+    };
+    return stats[itemId] || '90%';
+}
+
+function getThirdStatLabel(itemId) {
+    const labels = {
+        1: 'SUCCESS RATE',
+        2: 'ORGANIC FEED',
+        3: 'SUCCESS RATE',
+        4: 'RECOVERY RATE',
+        5: 'SATISFACTION',
+        6: 'SURVIVAL RATE'
+    };
+    return labels[itemId] || 'SUCCESS RATE';
+}
 
 // Animal Friends World Interactions
 document.addEventListener('DOMContentLoaded', function () {
