@@ -6,8 +6,6 @@ let currentPage = 1;
 const itemsPerPage = 6;
 let currentModalSlide = 0;
 let modalSlideInterval = null;
-let galleryAutoSlideInterval = null;
-let currentGallerySlide = 0;
 
 // Language detection and management
 function detectUserLanguage() {
@@ -198,6 +196,41 @@ function renderGallery() {
         
         return `
             <div class="gallery-item" onclick="openGalleryModal(${item.id})">
+                <div class="gallery-item-image-container">
+                    <img src="${item.image}" alt="${title}" class="gallery-item-image" loading="lazy">
+                    <div class="gallery-item-category">${category}</div>
+                    <div class="gallery-item-stats">
+                        <i class="fas fa-users"></i>
+                        <span>${item.stats?.beneficiaries || '100+'}</span>
+                    </div>
+                </div>
+                <div class="gallery-item-content">
+                    <h3 class="gallery-item-title">${title}</h3>
+                    <p class="gallery-item-description">${description.substring(0, 120)}...</p>
+                    <div class="gallery-item-meta">
+                        <div class="gallery-item-date">
+                            <i class="fas fa-calendar"></i>
+                            ${new Date(item.date).toLocaleDateString()}
+                        </div>
+                        <div class="gallery-item-actions">
+                            <button class="action-btn" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="action-btn" title="Share">
+                                <i class="fas fa-share"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="gallery-item-overlay">
+                    <i class="fas fa-search-plus"></i>
+                    <div class="overlay-text">View Details</div>
+                    <div class="overlay-subtitle">Click to explore</div>
+                </div>
+            </div>
+        `;
+        return `
+            <div class="gallery-item" onclick="openGalleryModal('${item.id}')">
                 <div class="gallery-item-image-container">
                     <img src="${item.image}" alt="${title}" class="gallery-item-image" loading="lazy">
                     <div class="gallery-item-category">${category}</div>
