@@ -93,59 +93,39 @@
 
     <!-- Activities Gallery Section -->
     <section class="activities-gallery-section">
-        <h2 class="section-title">Our Activities Gallery</h2>
-        <p class="section-subtitle">Witness the impact of our philanthropic work through these moments</p>
-        
-        <!-- Gallery Controls -->
-        <div class="gallery-controls">
-            <div class="gallery-search">
-                <i class="fas fa-search"></i>
-                <input type="text" id="gallery-search-input" placeholder="Search activities...">
+        <div class="container">
+            <div class="header">
+                <h2 class="section-title">Our Impact & Activities</h2>
+                <p class="section-subtitle">Transforming communities through dedicated social initiatives and sustainable development programs</p>
             </div>
-            
-            <div class="gallery-filters">
-                <button class="filter-btn active" data-filter="all">All</button>
-                <button class="filter-btn" data-filter="welfare">Welfare</button>
-                <button class="filter-btn" data-filter="education">Education</button>
-                <button class="filter-btn" data-filter="rescue">Rescue</button>
-                <button class="filter-btn" data-filter="celebration">Celebration</button>
-                <button class="filter-btn" data-filter="environment">Environment</button>
-            </div>
-            
-            <div class="gallery-sort">
-                <select class="sort-dropdown" id="gallery-sort-select">
-                    <option value="date-desc">Latest First</option>
-                    <option value="date-asc">Oldest First</option>
-                    <option value="title-asc">A to Z</option>
-                    <option value="title-desc">Z to A</option>
-                </select>
+
+            <div class="slider-container">
+                <div class="slider-wrapper">
+                    <div class="slider" id="activitiesSlider">
+                        <!-- Slides will be loaded dynamically -->
+                    </div>
+                </div>
+
+                <div class="navigation">
+                    <div class="nav-dots" id="activitiesDotsContainer"></div>
+                    <div class="nav-controls">
+                        <button class="nav-btn" id="activitiesPrevBtn" aria-label="Previous slide">‹</button>
+                        <button class="nav-btn" id="activitiesNextBtn" aria-label="Next slide">›</button>
+                    </div>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-track">
+                        <div class="progress-bar" id="activitiesProgressBar"></div>
+                    </div>
+                </div>
             </div>
         </div>
         
-        <!-- Gallery Container -->
-        <div class="gallery-container">
-            <!-- Loading State -->
-            <div class="gallery-loading" id="gallery-loading">
-                <div class="loading-spinner"></div>
-                Loading activities...
-            </div>
-            
-            <!-- Gallery Grid -->
-            <div class="gallery-grid" id="gallery-grid">
-                <!-- Gallery items will be loaded dynamically -->
-            </div>
-            
-            <!-- No Results -->
-            <div class="gallery-no-results hidden" id="gallery-no-results">
-                <i class="fas fa-search"></i>
-                <h3>No activities found</h3>
-                <p>Try adjusting your search or filter criteria</p>
-            </div>
-            
-            <!-- Pagination -->
-            <div class="gallery-pagination" id="gallery-pagination">
-                <!-- Pagination will be generated dynamically -->
-            </div>
+        <!-- Loading State -->
+        <div class="gallery-loading hidden" id="gallery-loading">
+            <div class="loading-spinner"></div>
+            Loading activities...
         </div>
     </section>
 
