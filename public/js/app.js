@@ -1234,6 +1234,629 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
+// Gallery functionality
+let activitiesGalleryData = [];
+let activitiesSlider = null;
+
+// Activities Gallery Slider Class
+class ActivitiesGallerySlider {
+    constructor() {
+        this.slider = document.getElementById('activitiesSlider');
+        this.slides = [];
+        this.currentSlide = 0;
+        this.totalSlides = 0;
+        this.isPlaying = true;
+        this.autoplayDelay = 6000;
+        this.progressBar = document.getElementById('activitiesProgressBar');
+        this.data = [];
+        
+        this.init();
+    }
+
+    async init() {
+        await this.loadData();
+        this.createSlides();
+        this.createDots();
+        this.setupEventListeners();
+        this.startAutoplay();
+        this.updateProgressBar();
+        this.updateNavigationState();
+    }
+
+    async loadData() {
+        try {
+            const response = await fetch('/api/activities-gallery');
+            const result = await response.json();
+            this.data = result.data || [];
+            this.totalSlides = this.data.length;
+        } catch (error) {
+            console.error('Error loading activities gallery data:', error);
+            this.data = [];
+            this.totalSlides = 0;
+        }
+    }
+
+    createSlides() {
+        if (!this.data.length) {
+            this.slider.innerHTML = '<div class="slide"><div class="slide-content"><p>No activities available</p></div></div>';
+            return;
+        }
+
+        this.slider.innerHTML = this.data.map(item => {
+            const stats = this.generateStats(item);
+            return `
+                <div class="slide">
+                    <div class="slide-content">
+                        <div class="slide-image" onclick="openGalleryModal('${escapeHtmlAttribute(item.id)}')">
+                            <img src="${escapeHtmlAttribute(item.image)}" alt="${escapeHtmlAttribute(item.title_en)}">
+                        </div>
+                        <div class="slide-text">
+                            <span class="slide-category">${escapeTemplateString(item.category_en)}</span>
+                            <h2 class="slide-title" onclick="openGalleryModal('${escapeHtmlAttribute(item.id)}')">${escapeTemplateString(item.title_en)}</h2>
+                            <p class="slide-description">${escapeTemplateString(item.description_en)}</p>
+                            <div class="slide-stats">
+                                ${stats.map(stat => `
+                                    <div class="stat">
+                                        <span class="stat-number">${stat.value}</span>
+                                        <span class="stat-label">${stat.label}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        this.slides = this.slider.children;
+    }
+
+    generateStats(item) {
+        const statsMap = {
+            'WELFARE': [
+                { value: '500+', label: 'Beneficiaries' },
+                { value: '15', label: 'Locations' },
+                { value: '100%', label: 'Success Rate' }
+            ],
+            'EDUCATION': [
+                { value: '300+', label: 'Students' },
+                { value: '15', label: 'Schools' },
+                { value: '95%', label: 'Success Rate' }
+            ],
+            'RESCUE': [
+                { value: '50+', label: 'Animals Rescued' },
+                { value: '24/7', label: 'Response Time' },
+                { value: '100%', label: 'Recovery Rate' }
+            ],
+            'CONSERVATION': [
+                { value: '1000+', label: 'Birds Helped' },
+                { value: '365', label: 'Days Active' },
+                { value: '50+', label: 'Locations' }
+            ],
+            'CELEBRATION': [
+                { value: '200+', label: 'Families' },
+                { value: '5', label: 'Festivals' },
+                { value: '1000+', label: 'Children' }
+            ],
+            'ENVIRONMENT': [
+                { value: '100+', label: 'Water Bowls' },
+                { value: '100+', label: 'Locations' },
+                { value: '365', label: 'Days Active' }
+            ]
+        };
+        
+        return statsMap[item.category_en] || [
+            { value: '100+', label: 'Beneficiaries' },
+            { value: '10', label: 'Locations' },
+            { value: '90%', label: 'Success Rate' }
+        ];
+    }
+
+    createDots() {
+        const dotsContainer = document.getElementById('activitiesDotsContainer');
+        dotsContainer.innerHTML = '';
+        
+        for (let i = 0; i < this.totalSlides; i++) {
+            const dot = document.createElement('div');
+            dot.className = `dot ${i === 0 ? 'active' : ''}`;
+            dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+            dot.setAttribute('tabindex', '0');
+            dot.addEventListener('click', () => this.goToSlide(i));
+            dot.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.goToSlide(i);
+                }
+            });
+            dotsContainer.appendChild(dot);
+        }
+    }
+
+    setupEventListeners() {
+        const container = document.querySelector('.slider-container');
+        const prevBtn = document.getElementById('activitiesPrevBtn');
+        const nextBtn = document.getElementById('activitiesNextBtn');
+
+        // Pause on hover
+        container.addEventListener('mouseenter', () => {
+            this.pauseAutoplay();
+        });
+
+        container.addEventListener('mouseleave', () => {
+            this.resumeAutoplay();
+        });
+
+        // Navigation buttons
+        prevBtn.addEventListener('click', () => this.previousSlide());
+        nextBtn.addEventListener('click', () => this.nextSlide());
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                this.previousSlide();
+            } else if (e.key === 'ArrowRight') {
+                this.nextSlide();
+            }
+        });
+
+        // Touch/swipe support
+        let startX = 0;
+        let startY = 0;
+        
+        container.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            this.pauseAutoplay();
+        });
+
+        container.addEventListener('touchend', (e) => {
+            const endX = e.changedTouches[0].clientX;
+            const endY = e.changedTouches[0].clientY;
+            const diffX = startX - endX;
+            const diffY = startY - endY;
+
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                if (diffX > 0) {
+                    this.nextSlide();
+                } else {
+                    this.previousSlide();
+                }
+            }
+            this.resumeAutoplay();
+        });
+    }
+
+    goToSlide(index) {
+        this.currentSlide = index;
+        this.updateSlider();
+        this.resetAutoplay();
+    }
+
+    nextSlide() {
+        this.currentSlide = (this.currentSlide + 1) % this.totalSlides;
+        this.updateSlider();
+    }
+
+    previousSlide() {
+        this.currentSlide = (this.currentSlide - 1 + this.totalSlides) % this.totalSlides;
+        this.updateSlider();
+    }
+
+    updateSlider() {
+        const offset = -this.currentSlide * 100;
+        this.slider.style.transform = `translateX(${offset}%)`;
+        this.updateDots();
+        this.updateProgressBar();
+        this.updateNavigationState();
+    }
+
+    updateDots() {
+        const dots = document.querySelectorAll('#activitiesDotsContainer .dot');
+        dots.forEach((dot, index) => {
+            dot.classList.toggle('active', index === this.currentSlide);
+        });
+    }
+
+    updateProgressBar() {
+        const progress = ((this.currentSlide + 1) / this.totalSlides) * 100;
+        this.progressBar.style.width = `${progress}%`;
+    }
+
+    updateNavigationState() {
+        const prevBtn = document.getElementById('activitiesPrevBtn');
+        const nextBtn = document.getElementById('activitiesNextBtn');
+        
+        prevBtn.disabled = false;
+        nextBtn.disabled = false;
+    }
+
+    startAutoplay() {
+        this.autoplayInterval = setInterval(() => {
+            if (this.isPlaying) {
+                this.nextSlide();
+            }
+        }, this.autoplayDelay);
+    }
+
+    pauseAutoplay() {
+        this.isPlaying = false;
+    }
+
+    resumeAutoplay() {
+        this.isPlaying = true;
+    }
+
+    resetAutoplay() {
+        clearInterval(this.autoplayInterval);
+        this.startAutoplay();
+    }
+}
+
+// Load gallery data (keeping for modal functionality)
+async function loadGalleryData() {
+    const loadingElement = document.getElementById('gallery-loading');
+    
+    try {
+        loadingElement.classList.remove('hidden');
+        
+        const response = await fetch('/api/activities-gallery');
+        const result = await response.json();
+        
+        activitiesGalleryData = result.data || [];
+        
+    } catch (error) {
+        console.error('Error loading gallery data:', error);
+        console.log('Failed to load activities. Please try again later.');
+    } finally {
+        loadingElement.classList.add('hidden');
+    }
+}
+
+// Open gallery modal
+function openGalleryModal(itemId) {
+    const item = activitiesGalleryData.find(item => item.id === itemId);
+    if (!item) return;
+    
+    // Create modal if it doesn't exist
+    createGalleryModal();
+    
+    const modal = document.getElementById('gallery-modal');
+    const title = document.getElementById('gallery-modal-title');
+    const description = document.getElementById('gallery-modal-description');
+    const date = document.getElementById('gallery-modal-date');
+    const category = document.getElementById('gallery-modal-category');
+    const stats = document.getElementById('gallery-modal-stats');
+    
+    // Update modal content
+    title.textContent = item.title_en;
+    description.textContent = item.description_en;
+    date.textContent = new Date(item.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    category.textContent = item.category_en;
+    
+    // Update stats
+    const activityStats = getActivityStats(item.category_en, item.id);
+    stats.innerHTML = Object.entries(activityStats).map(([key, value]) => 
+        `<div class="stat-item">
+            <div class="stat-value">${value}</div>
+            <div class="stat-label">${key}</div>
+        </div>`
+    ).join('');
+    
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    
+    // Initialize carousel
+    initializeModalCarousel(item);
+}
+
+// Create gallery modal
+function createGalleryModal() {
+    const existingModal = document.getElementById('gallery-modal');
+    if (existingModal) return;
+    
+    const modal = document.createElement('div');
+    modal.id = 'gallery-modal';
+    modal.className = 'gallery-modal';
+    
+    modal.innerHTML = `
+        <div class="gallery-modal-content">
+            <div class="gallery-modal-header">
+                <h2 id="gallery-modal-title">Activity Details</h2>
+                <button class="gallery-modal-close" onclick="closeGalleryModal()">&times;</button>
+            </div>
+            <div class="gallery-modal-body">
+                <div class="gallery-modal-carousel">
+                    <div class="gallery-modal-carousel-container">
+                        <!-- Carousel slides will be inserted here -->
+                    </div>
+                    <button class="gallery-modal-carousel-nav prev" onclick="prevCarouselSlide()">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="gallery-modal-carousel-nav next" onclick="nextCarouselSlide()">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <div class="gallery-modal-carousel-indicators">
+                        <!-- Indicators will be inserted here -->
+                    </div>
+                </div>
+                <div class="gallery-modal-details">
+                    <p id="gallery-modal-description"></p>
+                    <div class="gallery-modal-meta">
+                        <div class="meta-item">
+                            <strong>Date:</strong>
+                            <span id="gallery-modal-date"></span>
+                        </div>
+                        <div class="meta-item">
+                            <strong>Category:</strong>
+                            <span id="gallery-modal-category"></span>
+                        </div>
+                    </div>
+                    <div id="gallery-modal-stats" class="gallery-modal-stats">
+                        <!-- Stats will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            closeGalleryModal();
+        }
+    });
+}
+
+// Close gallery modal
+function closeGalleryModal() {
+    const modal = document.getElementById('gallery-modal');
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+// Initialize gallery modal carousel
+function initializeModalCarousel(item) {
+    const carouselContainer = document.querySelector('.gallery-modal-carousel-container');
+    const indicatorsContainer = document.querySelector('.gallery-modal-carousel-indicators');
+    
+    // Clear existing content
+    carouselContainer.innerHTML = '';
+    indicatorsContainer.innerHTML = '';
+    
+    const images = item.images || [item.image];
+    
+    // Create slides
+    images.forEach((imageUrl, index) => {
+        const slide = document.createElement('div');
+        slide.className = 'gallery-modal-carousel-slide';
+        slide.innerHTML = `<img src="${imageUrl}" alt="Activity Image ${index + 1}">`;
+        carouselContainer.appendChild(slide);
+        
+        // Create indicator
+        const indicator = document.createElement('div');
+        indicator.className = `gallery-modal-carousel-dot ${index === 0 ? 'active' : ''}`;
+        indicator.addEventListener('click', () => goToCarouselSlide(index));
+        indicatorsContainer.appendChild(indicator);
+    });
+    
+    // Initialize carousel state
+    window.currentCarouselSlide = 0;
+    updateCarouselPosition();
+    
+    // Start auto-scroll if multiple images
+    if (images.length > 1) {
+        startCarouselAutoScroll(images.length);
+    }
+}
+
+// Carousel navigation functions
+window.prevCarouselSlide = function() {
+    const slides = document.querySelectorAll('.gallery-modal-carousel-slide');
+    window.currentCarouselSlide = window.currentCarouselSlide > 0 ? 
+        window.currentCarouselSlide - 1 : slides.length - 1;
+    updateCarouselPosition();
+}
+
+window.nextCarouselSlide = function() {
+    const slides = document.querySelectorAll('.gallery-modal-carousel-slide');
+    window.currentCarouselSlide = (window.currentCarouselSlide + 1) % slides.length;
+    updateCarouselPosition();
+}
+
+function goToCarouselSlide(slideIndex) {
+    window.currentCarouselSlide = slideIndex;
+    updateCarouselPosition();
+}
+
+function updateCarouselPosition() {
+    const carouselContainer = document.querySelector('.gallery-modal-carousel-container');
+    const offset = -window.currentCarouselSlide * 100;
+    carouselContainer.style.transform = `translateX(${offset}%)`;
+    updateCarouselIndicators(window.currentCarouselSlide);
+}
+
+function startCarouselAutoScroll(totalSlides) {
+    if (window.carouselInterval) {
+        clearInterval(window.carouselInterval);
+    }
+    
+    window.carouselInterval = setInterval(() => {
+        window.currentCarouselSlide = (window.currentCarouselSlide + 1) % totalSlides;
+        updateCarouselPosition();
+    }, 4000);
+}
+
+function updateCarouselIndicators(currentIndex) {
+    const indicators = document.querySelectorAll('.gallery-modal-carousel-dot');
+    indicators.forEach((indicator, index) => {
+        indicator.classList.toggle('active', index === currentIndex);
+    });
+}
+
+// Animal Friends World functionality
+let animalProgress = {
+    pets: 20,
+    parrot: 20,
+    earth: 20,
+    water: 20,
+    'bird-letter': 20
+};
+
+let badges = {
+    'animal-friend': false,
+    'shelter-provider': false,
+    'earth-protector': false,
+    'water-helper': false
+};
+
+// Setup animal interactions
+function setupAnimalInteractions() {
+    // Help buttons
+    document.querySelectorAll('.help-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const action = this.dataset.action;
+            const animalCard = this.closest('.animal-friend-card');
+            const animalType = animalCard.dataset.animal;
+            
+            handleAnimalAction(animalType, action);
+        });
+    });
+    
+    // Water drops
+    document.querySelectorAll('.water-drop').forEach(drop => {
+        drop.addEventListener('click', function() {
+            if (!this.classList.contains('found')) {
+                this.classList.add('found');
+                handleWaterDrop();
+            }
+        });
+    });
+}
+
+function handleAnimalAction(animalType, action) {
+    const progressBar = document.querySelector(`[data-animal="${animalType}"] .happiness-fill`);
+    const speechBubble = document.querySelector(`[data-animal="${animalType}"] .speech-bubble p`);
+    
+    // Update progress based on animal and action
+    switch (animalType) {
+        case 'pets':
+            if (action === 'give-water') {
+                animalProgress.pets = 60;
+                speechBubble.textContent = "Thank you for the water! I feel much better now. Could I have some food too?";
+            } else if (action === 'give-food') {
+                animalProgress.pets = 100;
+                speechBubble.textContent = "Woof! You're the best! I'm so happy now!";
+                earnBadge('animal-friend');
+            }
+            break;
+            
+        case 'parrot':
+            if (action === 'give-shelter') {
+                animalProgress.parrot = 60;
+                speechBubble.textContent = "Thank you for the shelter! I feel safer now. Could I have a perch to sit on?";
+            } else if (action === 'give-perch') {
+                animalProgress.parrot = 100;
+                speechBubble.textContent = "Squawk! This is perfect! I'm so happy in my new home!";
+                earnBadge('shelter-provider');
+            }
+            break;
+            
+        case 'earth':
+            if (action === 'plant-tree') {
+                animalProgress.earth = 60;
+                speechBubble.textContent = "Thank you for planting a tree! That helps me breathe. Can you clean up some trash too?";
+            } else if (action === 'clean-up') {
+                animalProgress.earth = 100;
+                speechBubble.textContent = "You're amazing! When you help keep me clean, all animals have a better home!";
+                earnBadge('earth-protector');
+            }
+            break;
+            
+        case 'bird-letter':
+            if (action === 'read-letter') {
+                animalProgress['bird-letter'] = 100;
+                speechBubble.textContent = "Thank you for reading my letter! You've helped all my animal friends!";
+                document.querySelector(`[data-animal="bird-letter"] .letter-content`).classList.remove('hidden');
+                checkAllBadges();
+            }
+            break;
+    }
+    
+    // Update progress bar
+    progressBar.style.width = `${animalProgress[animalType]}%`;
+    
+    // Add happy animation
+    const animalCard = document.querySelector(`[data-animal="${animalType}"]`);
+    animalCard.classList.add('happy-animation');
+    setTimeout(() => {
+        animalCard.classList.remove('happy-animation');
+    }, 1000);
+}
+
+let waterDropsFound = 0;
+
+function handleWaterDrop() {
+    waterDropsFound++;
+    const speechBubble = document.querySelector(`[data-animal="water"] .speech-bubble p`);
+    const progressBar = document.querySelector(`[data-animal="water"] .happiness-fill`);
+    
+    if (waterDropsFound === 1) {
+        animalProgress.water = 40;
+        speechBubble.textContent = "You found one way to save water! Can you find two more?";
+    } else if (waterDropsFound === 2) {
+        animalProgress.water = 70;
+        speechBubble.textContent = "Great! You found another way! Just one more to go!";
+    } else if (waterDropsFound === 3) {
+        animalProgress.water = 100;
+        speechBubble.textContent = "You found all three ways to save water! You're a water-saving hero!";
+        earnBadge('water-helper');
+    }
+    
+    progressBar.style.width = `${animalProgress.water}%`;
+}
+
+function earnBadge(badgeType) {
+    badges[badgeType] = true;
+    const badge = document.querySelector(`[data-badge="${badgeType}"]`);
+    badge.classList.add('earned');
+    
+    // Add celebration effect
+    badge.classList.add('celebration');
+    setTimeout(() => {
+        badge.classList.remove('celebration');
+    }, 3000);
+}
+
+function checkAllBadges() {
+    const earnedBadges = Object.values(badges).filter(earned => earned).length;
+    if (earnedBadges === 4) {
+        document.querySelector('.badges-container').classList.add('all-complete');
+        const chirpySpeech = document.querySelector(`[data-animal="bird-letter"] .speech-bubble p`);
+        chirpySpeech.textContent = "Tweet! You've earned all your helper badges! You're a true animal friend!";
+    }
+}
+
+// Utility functions for escaping HTML
+function escapeHtmlAttribute(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function escapeTemplateString(text) {
+    return text.replace(/&/g, '&amp;')
+               .replace(/</g, '&lt;')
+               .replace(/>/g, '&gt;')
+               .replace(/"/g, '&quot;')
+               .replace(/'/g, '&#39;');
+}
+
 // Modal functionality for products
 window.openModal = function (productId) {
     const modal = document.getElementById(productId + 'Modal');
@@ -1412,4 +2035,22 @@ document.addEventListener('DOMContentLoaded', function () {
     promptCloseBtn.addEventListener('click', function () {
         languagePrompt.classList.remove('show');
     });
+});
+
+// Initialize everything when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Load hero content
+    loadHeroContent();
+    
+    // Load gallery data for modals
+    loadGalleryData();
+    
+    // Initialize activities gallery slider
+    activitiesSlider = new ActivitiesGallerySlider();
+    
+    // Setup animal friends interactions
+    setupAnimalInteractions();
+    
+    // Load products
+    loadProducts();
 });
