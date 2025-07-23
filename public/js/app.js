@@ -2,6 +2,14 @@
 let currentLanguage = 'en';
 let contentCache = {};
 
+// Global variables
+let userBadges = {
+    'water-helper': false,
+    'animal-friend': false,
+    'shelter-provider': false,
+    'earth-protector': false
+};
+
 // Fetch hero content from API
 async function loadHeroContent(language = 'en') {
     try {
@@ -53,6 +61,38 @@ async function loadMultilingualContent(table, language = 'en') {
         console.error(`Failed to load ${table} content:`, error);
         return [];
     }
+}
+
+// Load activities content
+async function loadActivitiesContent(language = 'en') {
+    try {
+        const response = await fetch(`/api/activities-content?lang=${language}`);
+        const result = await response.json();
+        
+        if (result.error) {
+            console.warn('Failed to load activities content:', result.error);
+            return;
+        }
+        
+        // Update activities content in DOM
+        updateActivitiesContent(result.data);
+    } catch (error) {
+        console.error('Failed to load activities content:', error);
+    }
+}
+
+// Update activities content in DOM
+function updateActivitiesContent(activities) {
+    activities.forEach((activity, index) => {
+        const activityCard = document.querySelector(`.activity-card:nth-child(${index + 1})`);
+        if (activityCard) {
+            const titleElement = activityCard.querySelector('.activity-title');
+            const descElement = activityCard.querySelector('.activity-description');
+            
+            if (titleElement) titleElement.textContent = activity.title;
+            if (descElement) descElement.textContent = activity.description;
+        }
+    });
 }
 
 // Switch language globally
@@ -400,6 +440,9 @@ Object.entries(activityAnimations).forEach(([iconId, animationPath]) => {
 document.addEventListener('DOMContentLoaded', function () {
     // Load hero content from API
     loadHeroContent();
+    loadActivitiesContent();
+    initializeAnimalFriends();
+    initializeEcoProducts();
     
     // Load products from API
     loadProducts();
@@ -1234,6 +1277,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
+// Animal Friends World Functions
+function initializeAnimalFriends() {
+    // Initialize animal friends interactions
+    setupAnimalInteractions();
+}
+
+// Initialize eco products
+function initializeEcoProducts() {
+    // Initialize eco products functionality
+    loadProducts();
+}
+
 // Gallery functionality
 let activitiesGalleryData = [];
 let activitiesSlider = null;
@@ -1857,6 +1912,28 @@ function escapeTemplateString(text) {
                .replace(/'/g, '&#39;');
 }
 
+// Helper function to get activity stats
+function getActivityStats(category, id) {
+    const statsMap = {
+        'WELFARE': { beneficiaries: '500+', locations: '15' },
+        'CONSERVATION': { beneficiaries: '1000+', frequency: '365 days' },
+        'EDUCATION': { beneficiaries: '300+', schools: '15' },
+        'RESCUE': { rescued: '50+', response: '24/7' },
+        'CELEBRATION': { families: '200+', festivals: '5' },
+        'ENVIRONMENT': { bowls: '100+', locations: '100+' }
+    };
+    
+    return statsMap[category] || { beneficiaries: '100+', locations: '10' };
+}
+
+// Update gallery language
+function updateGalleryLanguage(language) {
+    // Update gallery content based on language
+    if (activitiesSlider) {
+        activitiesSlider.loadData();
+    }
+}
+
 // Modal functionality for products
 window.openModal = function (productId) {
     const modal = document.getElementById(productId + 'Modal');
@@ -2041,6 +2118,9 @@ document.addEventListener('DOMContentLoaded', function () {
 document.addEventListener('DOMContentLoaded', function() {
     // Load hero content
     loadHeroContent();
+    loadActivitiesContent();
+    initializeAnimalFriends();
+    initializeEcoProducts();
     
     // Load gallery data for modals
     loadGalleryData();
@@ -2054,3 +2134,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load products
     loadProducts();
 });
+
+// Update language switcher when language changes
+function updateLanguageSwitcher(language) {
+    // Reload content when language changes
+    loadHeroContent();
+    loadActivitiesContent();
+    
+    // Update language switcher display
+    updateLanguageDisplay(language);
+}
