@@ -7,7 +7,7 @@ async function loadHeroContent(language = 'en') {
     try {
         const response = await fetch(`/api/hero-content?lang=${language}`);
         const data = await response.json();
-
+        
         if (data.error) {
             console.warn('Using fallback content:', data.fallback);
             // Use fallback content if there's an error
@@ -15,7 +15,7 @@ async function loadHeroContent(language = 'en') {
         } else {
             // Cache all language data
             contentCache.hero = data.all_languages;
-
+            
             // Use language-specific data from Supabase
             updateHeroContent(data.title, data.subtitle);
         }
@@ -30,7 +30,7 @@ async function loadHeroContent(language = 'en') {
 function updateHeroContent(title, subtitle) {
     const titleElement = document.getElementById('hero-title');
     const subtitleElement = document.getElementById('hero-slogan');
-
+    
     if (titleElement) titleElement.textContent = title;
     if (subtitleElement) subtitleElement.textContent = subtitle;
 }
@@ -40,12 +40,12 @@ async function loadMultilingualContent(table, language = 'en') {
     try {
         const response = await fetch(`/api/content/${table}?lang=${language}`);
         const result = await response.json();
-
+        
         if (result.error) {
             console.warn(`Failed to load ${table} content:`, result.error);
             return [];
         }
-
+        
         // Cache the content
         contentCache[table] = result.data;
         return result.data;
@@ -58,7 +58,7 @@ async function loadMultilingualContent(table, language = 'en') {
 // Switch language globally
 function switchLanguageGlobally(newLanguage) {
     currentLanguage = newLanguage;
-
+    
     // Update hero content
     if (contentCache.hero && contentCache.hero[newLanguage]) {
         updateHeroContent(
@@ -68,19 +68,19 @@ function switchLanguageGlobally(newLanguage) {
     } else {
         loadHeroContent(newLanguage);
     }
-
+    
     // Update other content sections
     updateAllContentSections(newLanguage);
-
+    
     // Update gallery language
     updateGalleryLanguage(newLanguage);
-
+    
     // Update language switcher display
     updateLanguageDisplay(newLanguage);
-
+    
     // Load products in new language
     loadProducts(newLanguage);
-
+    
     // Reload activities gallery in new language
     loadActivitiesGallery(newLanguage).then(activities => {
         if (activities.length > 0) {
@@ -138,7 +138,7 @@ function updateAllContentSections(language) {
             'year-round-desc': 'પશુ કલ્યાણને પ્રોત્સાહન આપવા માટે પક્ષીઘર, પક્ષી ફીડર અને પાણીના વાટકાનું 365-દિવસનું વિતરણ.',
         }
     };
-
+    
     // Apply translations to static content
     if (language !== 'en' && existingTranslations[language]) {
         document.querySelectorAll('[data-lang-key]').forEach(element => {
@@ -165,7 +165,7 @@ function updateLanguageDisplay(language) {
         'hi': 'हिंदी',
         'gu': 'ગુજરાતી'
     };
-
+    
     const currentLanguageDisplay = document.querySelector('.current-language');
     if (currentLanguageDisplay) {
         currentLanguageDisplay.textContent = languageNames[language] || 'English';
@@ -177,15 +177,15 @@ async function loadProducts(language = 'en') {
     try {
         const response = await fetch(`/api/content/products?lang=${language}`);
         const result = await response.json();
-
+        
         if (result.error) {
             console.warn('Failed to load products:', result.error);
             return;
         }
-
+        
         // Cache the products
         contentCache.products = result.data;
-
+        
         // Update products display
         updateProductsDisplay(result.data);
     } catch (error) {
@@ -197,10 +197,10 @@ async function loadProducts(language = 'en') {
 function updateProductsDisplay(products) {
     const productsGrid = document.querySelector('.products-grid');
     if (!productsGrid) return;
-
+    
     // Clear existing products
     productsGrid.innerHTML = '';
-
+    
     // Create product cards
     products.forEach((product, index) => {
         const productCard = createProductCard(product, index + 1);
@@ -213,7 +213,7 @@ function createProductCard(product, index) {
     const card = document.createElement('div');
     card.className = 'product-card';
     card.onclick = () => openModal(`product${index}`);
-
+    
     // Parse colors if it's a JSON string
     let colors = [];
     try {
@@ -221,7 +221,7 @@ function createProductCard(product, index) {
     } catch (e) {
         colors = [];
     }
-
+    
     card.innerHTML = `
         <img src="${product.image_url || 'https://via.placeholder.com/300x250'}" 
              alt="${product.name}" 
@@ -234,11 +234,11 @@ function createProductCard(product, index) {
             <button class="view-more-btn">View More</button>
         </div>
     `;
-
+    
     // Create and append modal
     const modal = createProductModal(product, index, colors);
     document.body.appendChild(modal);
-
+    
     return card;
 }
 
@@ -247,12 +247,12 @@ function createProductModal(product, index, colors) {
     const modal = document.createElement('div');
     modal.id = `product${index}Modal`;
     modal.className = 'modal';
-
+    
     // Create color options HTML
     const colorOptionsHTML = colors.map(color => 
         `<div class="color-option" style="background-color: ${color};" onclick="selectColor(this)"></div>`
     ).join('');
-
+    
     // Create dimensions HTML
     const dimensionsHTML = `
         ${product.height_cm ? `
@@ -274,7 +274,7 @@ function createProductModal(product, index, colors) {
             </div>
         ` : ''}
     `;
-
+    
     modal.innerHTML = `
         <div class="modal-content">
             <div class="modal-header">
@@ -320,7 +320,7 @@ function createProductModal(product, index, colors) {
             </div>
         </div>
     `;
-
+    
     return modal;
 }
 
@@ -400,10 +400,10 @@ Object.entries(activityAnimations).forEach(([iconId, animationPath]) => {
 document.addEventListener('DOMContentLoaded', function () {
     // Load hero content from API
     loadHeroContent();
-
+    
     // Load products from API
     loadProducts();
-
+    
     // Initialize gallery
     initializeEnhancedGallery();
 });
@@ -426,12 +426,12 @@ async function loadActivitiesGallery(language = 'en') {
     try {
         const response = await fetch(`/api/activities-gallery?lang=${language}`);
         const result = await response.json();
-
+        
         if (result.error) {
             console.warn('Failed to load activities gallery:', result.error);
             return [];
         }
-
+        
         return result.data;
     } catch (error) {
         console.error('Failed to load activities gallery:', error);
@@ -442,11 +442,11 @@ async function loadActivitiesGallery(language = 'en') {
 // Initialize enhanced gallery
 async function initializeEnhancedGallery() {
     showLoading();
-
+    
     try {
         // Load activities from API instead of using hardcoded data
         const activities = await loadActivitiesGallery(currentLanguage);
-
+        
         if (activities.length > 0) {
             allGalleryItems = activities;
             filteredGalleryItems = [...allGalleryItems];
@@ -455,7 +455,7 @@ async function initializeEnhancedGallery() {
             allGalleryItems = [];
             filteredGalleryItems = [];
         }
-
+        
         setupGalleryEventListeners();
         renderGallery();
     } catch (error) {
@@ -475,13 +475,13 @@ function setupGalleryEventListeners() {
     if (searchInput) {
         searchInput.addEventListener('input', debounce(handleSearch, 300));
     }
-
+    
     // Filter buttons
     const filterButtons = document.querySelectorAll('.filter-btn');
     filterButtons.forEach(btn => {
         btn.addEventListener('click', handleFilter);
     });
-
+    
     // Sort dropdown
     const sortSelect = document.getElementById('gallery-sort-select');
     if (sortSelect) {
@@ -500,7 +500,7 @@ function handleFilter(event) {
     // Update active filter button
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
-
+    
     currentFilter = event.target.dataset.filter;
     currentPage = 1; // Reset to first page
     applyFiltersAndSort();
@@ -516,7 +516,7 @@ function handleSort(event) {
 // Apply filters and sorting
 function applyFiltersAndSort() {
     showLoading();
-
+    
     // Filter items
     filteredGalleryItems = allGalleryItems.filter(item => {
         // Convert filter to uppercase to match database categories
@@ -525,10 +525,10 @@ function applyFiltersAndSort() {
         const matchesSearch = searchQuery === '' || 
             item.title_en.toLowerCase().includes(searchQuery) ||
             item.description_en.toLowerCase().includes(searchQuery);
-
+        
         return matchesFilter && matchesSearch;
     });
-
+    
     // Sort items
     filteredGalleryItems.sort((a, b) => {
         switch (currentSort) {
@@ -544,7 +544,7 @@ function applyFiltersAndSort() {
                 return (a.display_order || 0) - (b.display_order || 0);
         }
     });
-
+    
     setTimeout(() => {
         renderGallery();
         hideLoading();
@@ -555,12 +555,12 @@ function applyFiltersAndSort() {
 function renderGallery() {
     const galleryGrid = document.getElementById('gallery-grid');
     const noResults = document.getElementById('gallery-no-results');
-
+    
     if (!galleryGrid) return;
-
+    
     // Clear existing content
     galleryGrid.innerHTML = '';
-
+    
     // Check if there are results
     if (filteredGalleryItems.length === 0) {
         noResults.classList.remove('hidden');
@@ -568,22 +568,22 @@ function renderGallery() {
     } else {
         noResults.classList.add('hidden');
     }
-
+    
     // Calculate pagination
     const totalPages = Math.ceil(filteredGalleryItems.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const currentItems = filteredGalleryItems.slice(startIndex, endIndex);
-
+    
     // Create gallery items
     currentItems.forEach(item => {
         const galleryItem = createEnhancedGalleryItem(item);
         galleryGrid.appendChild(galleryItem);
     });
-
+    
     // Update pagination
     renderPagination(totalPages);
-
+    
     // Create modal if it doesn't exist
     createEnhancedGalleryModal();
 }
@@ -593,12 +593,12 @@ function createEnhancedGalleryItem(item) {
     const galleryItem = document.createElement('div');
     galleryItem.className = 'gallery-item';
     galleryItem.onclick = () => openEnhancedGalleryModal(item);
-
+    
     const lang = currentLanguage || 'en';
     const title = item[`title_${lang}`] || item.title_en;
     const description = item[`description_${lang}`] || item.description_en;
     const category = item[`category_${lang}`] || item.category_en;
-
+    
     galleryItem.innerHTML = `
         <div class="gallery-item-image-container">
             <img src="${item.image}" alt="${title}" class="gallery-item-image" loading="lazy">
@@ -632,7 +632,7 @@ function createEnhancedGalleryItem(item) {
             <div class="overlay-subtitle">Click to explore</div>
         </div>
     `;
-
+    
     return galleryItem;
 }
 
@@ -643,9 +643,9 @@ function renderPagination(totalPages) {
         paginationContainer.innerHTML = '';
         return;
     }
-
+    
     let paginationHTML = '';
-
+    
     // Previous button
     paginationHTML += `
         <button class="pagination-btn ${currentPage === 1 ? 'disabled' : ''}" 
@@ -654,7 +654,7 @@ function renderPagination(totalPages) {
             <i class="fas fa-chevron-left"></i>
         </button>
     `;
-
+    
     // Page numbers
     for (let i = 1; i <= totalPages; i++) {
         if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
@@ -668,7 +668,7 @@ function renderPagination(totalPages) {
             paginationHTML += '<span class="pagination-ellipsis">...</span>';
         }
     }
-
+    
     // Next button
     paginationHTML += `
         <button class="pagination-btn ${currentPage === totalPages ? 'disabled' : ''}" 
@@ -677,17 +677,17 @@ function renderPagination(totalPages) {
             <i class="fas fa-chevron-right"></i>
         </button>
     `;
-
+    
     paginationContainer.innerHTML = paginationHTML;
 }
 
 // Change page
 function changePage(page) {
     if (page < 1 || page > Math.ceil(filteredGalleryItems.length / itemsPerPage)) return;
-
+    
     currentPage = page;
     renderGallery();
-
+    
     // Scroll to top of gallery
     document.querySelector('.activities-gallery-section').scrollIntoView({ 
         behavior: 'smooth' 
@@ -699,7 +699,7 @@ function showLoading() {
     const loading = document.getElementById('gallery-loading');
     const grid = document.getElementById('gallery-grid');
     const noResults = document.getElementById('gallery-no-results');
-
+    
     if (loading) loading.classList.remove('hidden');
     if (grid) grid.style.opacity = '0.5';
     if (noResults) noResults.classList.add('hidden');
@@ -709,7 +709,7 @@ function showLoading() {
 function hideLoading() {
     const loading = document.getElementById('gallery-loading');
     const grid = document.getElementById('gallery-grid');
-
+    
     if (loading) loading.classList.add('hidden');
     if (grid) grid.style.opacity = '1';
 }
@@ -731,11 +731,11 @@ function debounce(func, wait) {
 function createEnhancedGalleryModal() {
     const existingModal = document.getElementById('gallery-modal');
     if (existingModal) return;
-
+    
     const modal = document.createElement('div');
     modal.id = 'gallery-modal';
     modal.className = 'gallery-modal';
-
+    
     modal.innerHTML = `
         <div class="gallery-modal-content">
             <div class="gallery-modal-header">
@@ -767,9 +767,9 @@ function createEnhancedGalleryModal() {
             </div>
         </div>
     `;
-
+    
     document.body.appendChild(modal);
-
+    
     // Close modal when clicking outside
     modal.addEventListener('click', function(event) {
         if (event.target === modal) {
@@ -785,15 +785,15 @@ function openEnhancedGalleryModal(item) {
     const quote = document.getElementById('gallery-modal-quote');
     const description = document.getElementById('gallery-modal-description');
     const meta = document.getElementById('gallery-modal-meta');
-
+    
     if (!modal || !title || !quote || !description || !meta) return;
-
+    
     const lang = currentLanguage || 'en';
-
+    
     title.textContent = item[`title_${lang}`] || item.title_en;
     quote.textContent = item[`quote_${lang}`] || item.quote_en || '';
     description.textContent = item[`description_${lang}`] || item.description_en;
-
+    
     // Create meta items
     let metaHTML = '';
     metaHTML += `
@@ -806,7 +806,7 @@ function openEnhancedGalleryModal(item) {
             <div class="gallery-modal-meta-value">${item[`category_${lang}`] || item.category_en}</div>
         </div>
     `;
-
+    
     // Add stats
     Object.entries(item.stats).forEach(([key, value]) => {
         metaHTML += `
@@ -816,12 +816,12 @@ function openEnhancedGalleryModal(item) {
             </div>
         `;
     });
-
+    
     meta.innerHTML = metaHTML;
-
+    
     // Create and start carousel
     createEnhancedModalCarousel(item);
-
+    
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
 }
@@ -840,33 +840,33 @@ window.closeEnhancedGalleryModal = function() {
 function createEnhancedModalCarousel(item) {
     const carouselContainer = document.getElementById('gallery-modal-carousel-container');
     const indicatorsContainer = document.getElementById('gallery-modal-carousel-indicators');
-
+    
     if (!carouselContainer || !indicatorsContainer) return;
-
+    
     // Clear existing content
     carouselContainer.innerHTML = '';
     indicatorsContainer.innerHTML = '';
-
+    
     const images = item.images || [item.image];
-
+    
     // Create slides
     images.forEach((imageUrl, index) => {
         const slide = document.createElement('div');
         slide.className = 'gallery-modal-carousel-slide';
         slide.innerHTML = `<img src="${imageUrl}" alt="Activity Image ${index + 1}" loading="lazy">`;
         carouselContainer.appendChild(slide);
-
+        
         // Create indicator
         const indicator = document.createElement('div');
         indicator.className = `gallery-modal-carousel-dot ${index === 0 ? 'active' : ''}`;
         indicator.addEventListener('click', () => goToEnhancedModalSlide(index));
         indicatorsContainer.appendChild(indicator);
     });
-
+    
     // Reset to first slide
     currentModalSlide = 0;
     updateEnhancedModalCarousel();
-
+    
     // Start auto-scroll if multiple images
     if (images.length > 1) {
         startModalCarousel(images.length);
@@ -877,11 +877,11 @@ function createEnhancedModalCarousel(item) {
 function updateEnhancedModalCarousel() {
     const carouselContainer = document.getElementById('gallery-modal-carousel-container');
     const indicators = document.querySelectorAll('.gallery-modal-carousel-dot');
-
+    
     if (carouselContainer) {
         carouselContainer.style.transform = `translateX(-${currentModalSlide * 20}%)`;
     }
-
+    
     // Update indicators
     indicators.forEach((indicator, index) => {
         indicator.classList.toggle('active', index === currentModalSlide);
@@ -893,7 +893,7 @@ function goToEnhancedModalSlide(slideIndex) {
     const indicators = document.querySelectorAll('.gallery-modal-carousel-dot');
     currentModalSlide = slideIndex;
     updateEnhancedModalCarousel();
-
+    
     // Restart auto-scroll
     if (modalCarouselInterval) {
         clearInterval(modalCarouselInterval);
@@ -920,7 +920,7 @@ function startModalCarousel(totalSlides) {
     if (modalCarouselInterval) {
         clearInterval(modalCarouselInterval);
     }
-
+    
     if (totalSlides > 1) {
         modalCarouselInterval = setInterval(() => {
             currentModalSlide = (currentModalSlide + 1) % totalSlides;
