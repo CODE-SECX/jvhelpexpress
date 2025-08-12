@@ -351,10 +351,242 @@ app.post('/api/user-thoughts', async (req, res) => {
     }
 });
 
+// Admin authentication endpoints
+const crypto = require('crypto');
+
+// Helper function to hash credentials
+function hashCredential(credential, salt) {
+    return crypto.createHash('sha256').update(credential + salt).digest('hex');
+}
+
+// Helper function to generate session token
+function generateSessionToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+// Admin login endpoint
+app.post('/api/admin/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password required' });
+        }
+
+        // Hash the provided credentials
+        const salt = 'jvhelp_salt_2025';
+        const usernameHash = hashCredential(username, salt);
+        const passwordHash = hashCredential(password, salt);
+
+        // Check credentials in database
+        const { data: adminData, error: adminError } = await supabase
+            .from('admin_credentials')
+            .select('id')
+            .eq('username_hash', usernameHash)
+            .eq('password_hash', passwordHash)
+            .single();
+
+        if (adminError || !adminData) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        // Create session
+        const sessionToken = generateSessionToken();
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        const { error: sessionError } = await supabase
+            .from('admin_sessions')
+            .insert([{
+                session_token: sessionToken,
+                admin_id: adminData.id,
+                expires_at: expiresAt.toISOString()
+            }]);
+
+        if (sessionError) {
+            console.error('Session creation error:', sessionError);
+            return res.status(500).json({ error: 'Failed to create session' });
+        }
+
+        res.json({
+            success: true,
+            token: sessionToken,
+            expires_at: expiresAt.toISOString()
+        });
+
+    } catch (error) {
+        console.error('Admin login error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Middleware to verify admin session
+async function verifyAdminSession(req, res, next) {
+    try {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+
+        if (!token) {
+            return res.status(401).json({ error: 'No session token provided' });
+        }
+
+        const { data: sessionData, error: sessionError } = await supabase
+            .from('admin_sessions')
+            .select('admin_id, expires_at')
+            .eq('session_token', token)
+            .single();
+
+        if (sessionError || !sessionData) {
+            return res.status(401).json({ error: 'Invalid session' });
+        }
+
+        // Check if session is expired
+        if (new Date(sessionData.expires_at) < new Date()) {
+            // Delete expired session
+            await supabase
+                .from('admin_sessions')
+                .delete()
+                .eq('session_token', token);
+
+            return res.status(401).json({ error: 'Session expired' });
+        }
+
+        // Update last accessed time
+        await supabase
+            .from('admin_sessions')
+            .update({ last_accessed: new Date().toISOString() })
+            .eq('session_token', token);
+
+        req.adminId = sessionData.admin_id;
+        next();
+
+    } catch (error) {
+        console.error('Session verification error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+// Admin dashboard endpoints
+app.get('/api/admin/dashboard', verifyAdminSession, (req, res) => {
+    res.json({
+        success: true,
+        message: 'Welcome to admin dashboard',
+        modules: [
+            {
+                id: 'thoughts',
+                name: 'User Thoughts',
+                description: 'Manage and view user feedback and thoughts',
+                icon: '💭',
+                path: '/admin/thoughts'
+            },
+            {
+                id: 'analytics',
+                name: 'Analytics',
+                description: 'View website analytics and statistics',
+                icon: '📊',
+                path: '/admin/analytics'
+            },
+            {
+                id: 'content',
+                name: 'Content Management',
+                description: 'Manage website content and activities',
+                icon: '📝',
+                path: '/admin/content'
+            }
+        ]
+    });
+});
+
+// Admin thoughts management
+app.get('/api/admin/thoughts', verifyAdminSession, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+
+        const { data, error, count } = await supabase
+            .from('user_thoughts')
+            .select('*', { count: 'exact' })
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        if (error) {
+            console.error('Admin thoughts fetch error:', error);
+            return res.status(500).json({ error: 'Failed to fetch thoughts' });
+        }
+
+        res.json({
+            data: data || [],
+            pagination: {
+                page,
+                limit,
+                total: count || 0,
+                totalPages: Math.ceil((count || 0) / limit)
+            }
+        });
+
+    } catch (error) {
+        console.error('Admin thoughts error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete thought endpoint
+app.delete('/api/admin/thoughts/:id', verifyAdminSession, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabase
+            .from('user_thoughts')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Delete thought error:', error);
+            return res.status(500).json({ error: 'Failed to delete thought' });
+        }
+
+        res.json({ success: true, message: 'Thought deleted successfully' });
+
+    } catch (error) {
+        console.error('Delete thought error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Admin logout
+app.post('/api/admin/logout', verifyAdminSession, async (req, res) => {
+    try {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+
+        await supabase
+            .from('admin_sessions')
+            .delete()
+            .eq('session_token', token);
+
+        res.json({ success: true, message: 'Logged out successfully' });
+
+    } catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+// Admin route (obfuscated path)
+app.get('/WVdSdGFYND0', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
+});
+
+// Admin dashboard route
+app.get('/admin/dashboard.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'dashboard.html'));
+});
+
+// Serve admin static files
+app.use('/admin', express.static('public/admin'));
 
 // Serve the main HTML file
 app.get('/', (req, res) => {

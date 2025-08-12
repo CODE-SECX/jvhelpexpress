@@ -1,0 +1,93 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="admin-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <header class="admin-header">
+            <div class="header-content">
+                <h1>JV Help Admin Dashboard</h1>
+                <div class="header-actions">
+                    <span class="admin-user">Welcome, Admin</span>
+                    <button id="logout-btn" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="admin-main">
+            <div class="dashboard-container">
+                <div class="dashboard-header">
+                    <h2>Dashboard Overview</h2>
+                    <p>Manage your application from here</p>
+                </div>
+
+                <div class="modules-grid" id="modules-grid">
+                    <!-- Modules will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Thoughts Management Section -->
+            <div class="module-content hidden" id="thoughts-content">
+                <div class="module-header">
+                    <button class="back-btn" onclick="showDashboard()">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </button>
+                    <h2>User Thoughts Management</h2>
+                </div>
+
+                <div class="thoughts-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-thoughts">0</div>
+                        <div class="stat-label">Total Thoughts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="anonymous-thoughts">0</div>
+                        <div class="stat-label">Anonymous</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="recent-thoughts">0</div>
+                        <div class="stat-label">This Week</div>
+                    </div>
+                </div>
+
+                <div class="thoughts-table-container">
+                    <div class="table-header">
+                        <h3>All Thoughts</h3>
+                        <div class="table-actions">
+                            <select id="language-filter">
+                                <option value="">All Languages</option>
+                                <option value="en">English</option>
+                                <option value="hi">Hindi</option>
+                                <option value="gu">Gujarati</option>
+                            </select>
+                            <select id="anonymous-filter">
+                                <option value="">All Types</option>
+                                <option value="true">Anonymous Only</option>
+                                <option value="false">Named Only</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="thoughts-table" id="thoughts-table">
+                        <!-- Thoughts table will be loaded here -->
+                    </div>
+
+                    <div class="pagination" id="pagination">
+                        <!-- Pagination will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="admin-dashboard.js"></script>
+</body>
+</html>
