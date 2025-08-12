@@ -1405,6 +1405,7 @@ dotlottie-player {
     overflow: hidden;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-top: 0.5rem;
 }
 
 .submit-btn::before {
