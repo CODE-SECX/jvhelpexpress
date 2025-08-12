@@ -285,8 +285,8 @@ function createProductCard(product, index) {
     }
 
     card.innerHTML = `
-        <img src="${product.image_url || "https://via.placeholder.com/300x250"}" 
-             alt="${product.name}" 
+        <img src="${product.image_url || "https://via.placeholder.com/300x250"}"
+             alt="${product.name}"
              class="product-image">
         <div class="product-info">
             <div class="product-name">${product.name}</div>
@@ -360,8 +360,8 @@ function createProductModal(product, index, colors) {
             </div>
             <div class="modal-body">
                 <div class="product-details">
-                    <img src="${product.image_url || "https://via.placeholder.com/500x500"}" 
-                         alt="${product.name}" 
+                    <img src="${product.image_url || "https://via.placeholder.com/500x500"}"
+                         alt="${product.name}"
                          class="product-image-large">
                     <div class="product-details-text">
                         <h2>${product.name}</h2>
@@ -518,7 +518,6 @@ let itemsPerPage = 6;
 let allGalleryItems = [];
 let filteredGalleryItems = [];
 let currentFilter = "all";
-let currentSort = "date-desc";
 let searchQuery = "";
 
 // Modal carousel variables
@@ -764,8 +763,8 @@ function renderPagination(totalPages) {
 
     // Previous button
     paginationHTML += `
-        <button class="pagination-btn ${currentPage === 1 ? "disabled" : ""}" 
-                onclick="changePage(${currentPage - 1})" 
+        <button class="pagination-btn ${currentPage === 1 ? "disabled" : ""}"
+                onclick="changePage(${currentPage - 1})"
                 ${currentPage === 1 ? "disabled" : ""}>
             <i class="fas fa-chevron-left"></i>
         </button>
@@ -779,7 +778,7 @@ function renderPagination(totalPages) {
             (i >= currentPage - 1 && i <= currentPage + 1)
         ) {
             paginationHTML += `
-                <button class="pagination-btn ${i === currentPage ? "active" : ""}" 
+                <button class="pagination-btn ${i === currentPage ? "active" : ""}"
                         onclick="changePage(${i})">
                     ${i}
                 </button>
@@ -791,8 +790,8 @@ function renderPagination(totalPages) {
 
     // Next button
     paginationHTML += `
-        <button class="pagination-btn ${currentPage === totalPages ? "disabled" : ""}" 
-                onclick="changePage(${currentPage + 1})" 
+        <button class="pagination-btn ${currentPage === totalPages ? "disabled" : ""}"
+                onclick="changePage(${currentPage + 1})"
                 ${currentPage === totalPages ? "disabled" : ""}>
             <i class="fas fa-chevron-right"></i>
         </button>
@@ -1012,7 +1011,7 @@ function updateEnhancedModalCarousel() {
     const indicators = document.querySelectorAll(".gallery-modal-carousel-dot");
 
     if (carouselContainer) {
-        carouselContainer.style.transform = `translateX(-${currentModalSlide * 20}%)`;
+        carouselContainer.style.transform = `translateX(-${currentModalSlide * 100}%)`; // Corrected from 20% to 100% for full slide width
     }
 
     // Update indicators
@@ -1020,6 +1019,7 @@ function updateEnhancedModalCarousel() {
         indicator.classList.toggle("active", index === currentModalSlide);
     });
 }
+
 
 // Go to specific enhanced modal slide
 function goToEnhancedModalSlide(slideIndex) {
@@ -2495,27 +2495,30 @@ function escapeHtml(text) {
 document.addEventListener("DOMContentLoaded", function () {
     // Load hero content
     loadHeroContent();
+
+    // Load activities content
     loadActivitiesContent();
+
+    // Initialize animal friends
     initializeAnimalFriends();
+
+    // Initialize eco products
     initializeEcoProducts();
 
     // Load gallery data for modals
     loadGalleryData();
 
-    // Initialize activities gallery slider
-    activitiesSlider = new ActivitiesGallerySlider();
-
-    // Setup animal friends interactions
-    setupAnimalInteractions();
-
-    // Load products
-    loadProducts();
-
-    // Initialize thoughts form
-    initializeThoughtsForm();
+    // Initialize activities gallery slider if element exists
+    const activitiesSlider = document.getElementById("activitiesSlider");
+    if (activitiesSlider) {
+        new ActivitiesGallerySlider();
+    }
 
     // Load recent thoughts
     loadRecentThoughts();
+
+    // Initialize thoughts form
+    initializeThoughtsForm();
 });
 
 // Update language switcher when language changes

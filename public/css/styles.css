@@ -1094,320 +1094,219 @@ dotlottie-player {
             }
         }
 
-/* Share Your Thoughts Section */
-        .thoughts-section {
-            padding: 5rem 5%;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            position: relative;
-        }
+/* Thoughts Section */
+.thoughts-section {
+    padding: 4rem 2rem;
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8f5fd 100%);
+}
 
-        .thoughts-section::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 6px;
-            background: linear-gradient(90deg, #1a237e, #283593, #3949ab);
-        }
+.thoughts-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
 
-        .thoughts-container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
+.thoughts-intro {
+    text-align: center;
+    margin-bottom: 3rem;
+}
 
-        .thoughts-intro {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
+.thoughts-intro h2 {
+    font-size: 2.5rem;
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
 
-        .thoughts-intro h2 {
-            font-size: 2.5rem;
-            color: #1a237e;
-            margin-bottom: 1rem;
-            font-weight: 700;
-        }
+.thoughts-intro p {
+    font-size: 1.1rem;
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 0.5rem;
+}
 
-        .thoughts-intro p {
-            font-size: 1.2rem;
-            color: #455a64;
-            line-height: 1.6;
-            margin-bottom: 0.5rem;
-        }
+.thoughts-form-container {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    margin-bottom: 3rem;
+}
 
-        .thoughts-form-container {
-            background: white;
-            border-radius: 20px;
-            padding: 2.5rem;
-            box-shadow: 0 15px 35px rgba(26, 35, 126, 0.1);
-            border: 2px solid transparent;
-            transition: all 0.3s ease;
-        }
+.form-message {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-weight: 500;
+    display: none;
+}
 
-        .thoughts-form-container:hover {
-            border-color: #1a237e;
-            box-shadow: 0 20px 40px rgba(26, 35, 126, 0.15);
-        }
+.form-message.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+    display: block;
+}
 
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
+.form-message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    display: block;
+}
 
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            color: #1a237e;
-            margin-bottom: 0.5rem;
-            font-size: 1rem;
-        }
+.anonymous-toggle {
+    margin-bottom: 1.5rem;
+}
 
-        .form-input,
-        .form-textarea {
-            width: 100%;
-            padding: 0.8rem 1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            font-family: inherit;
-        }
+.anonymous-toggle input[type="checkbox"] {
+    margin-right: 0.5rem;
+}
 
-        .form-input:focus,
-        .form-textarea:focus {
-            outline: none;
-            border-color: #1a237e;
-            box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.1);
-        }
+.anonymous-toggle label {
+    color: #555;
+    cursor: pointer;
+}
 
-        .form-textarea {
-            min-height: 120px;
-            resize: vertical;
-            line-height: 1.6;
-        }
+.form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
 
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
+.form-group {
+    flex: 1;
+}
 
-        .anonymous-toggle {
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
-            margin-bottom: 1.5rem;
-            padding: 1rem;
-            background: #f8f9fa;
-            border-radius: 10px;
-            border: 2px solid #e9ecef;
-            transition: all 0.3s ease;
-        }
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+}
 
-        .anonymous-toggle:hover {
-            background: #e3f2fd;
-            border-color: #bbdefb;
-        }
+.form-input,
+.form-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
 
-        .anonymous-toggle input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            accent-color: #1a237e;
-        }
+.form-input:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
 
-        .anonymous-toggle label {
-            margin: 0;
-            cursor: pointer;
-            font-weight: 500;
-            color: #455a64;
-        }
+.form-textarea {
+    min-height: 120px;
+    resize: vertical;
+}
 
-        .submit-btn {
-            background: linear-gradient(135deg, #1a237e, #283593);
-            color: white;
-            border: none;
-            padding: 1rem 2rem;
-            border-radius: 25px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-            position: relative;
-            overflow: hidden;
-        }
+.submit-btn {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    color: white;
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+}
 
-        .submit-btn:hover {
-            background: linear-gradient(135deg, #283593, #3949ab);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(26, 35, 126, 0.3);
-        }
+.submit-btn:hover {
+    background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+    transform: translateY(-2px);
+}
 
-        .submit-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
+.submit-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
 
-        .submit-btn.loading {
-            color: transparent;
-        }
+.recent-thoughts h3 {
+    font-size: 1.8rem;
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
 
-        .submit-btn.loading::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
-            border: 2px solid transparent;
-            border-top: 2px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
+.thoughts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
 
-        @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-        }
+.thought-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
 
-        .form-message {
-            padding: 1rem;
-            border-radius: 10px;
-            margin-bottom: 1.5rem;
-            font-weight: 500;
-            display: none;
-        }
+.thought-card:hover {
+    transform: translateY(-5px);
+}
 
-        .form-message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
+.thought-content p {
+    font-style: italic;
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
 
-        .form-message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
+.thought-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    color: #888;
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+}
 
-        .form-message.show {
-            display: block;
-            animation: slideIn 0.3s ease;
-        }
+.thought-author {
+    font-weight: 600;
+}
 
-        .recent-thoughts {
-            margin-top: 3rem;
-        }
+.no-thoughts,
+.error-message {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    grid-column: 1 / -1;
+    padding: 2rem;
+}
 
-        .recent-thoughts h3 {
-            text-align: center;
-            color: #1a237e;
-            margin-bottom: 2rem;
-            font-size: 1.8rem;
-        }
+.error-message {
+    color: #d32f2f;
+}
 
-        .thoughts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-        }
+@media (max-width: 768px) {
+    .thoughts-section {
+        padding: 2rem 1rem;
+    }
 
-        .thought-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid #1a237e;
-            transition: all 0.3s ease;
-        }
+    .thoughts-intro h2 {
+        font-size: 2rem;
+    }
 
-        .thought-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        }
+    .form-row {
+        flex-direction: column;
+    }
 
-        .thought-content {
-            font-style: italic;
-            color: #455a64;
-            line-height: 1.6;
-            margin-bottom: 1rem;
-            font-size: 1rem;
-        }
+    .thoughts-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
 
-        .thought-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.9rem;
-            color: #666;
-        }
-
-        .thought-author {
-            font-weight: 500;
-            color: #1a237e;
-        }
-
-        .thought-date {
-            color: #999;
-        }
-
-        .anonymous-badge {
-            background: linear-gradient(135deg, #e8eaf6, #c5cae9);
-            color: #1a237e;
-            padding: 0.2rem 0.5rem;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .thoughts-section {
-                padding: 3rem 3%;
-            }
-
-            .thoughts-intro h2 {
-                font-size: 2rem;
-            }
-
-            .thoughts-intro p {
-                font-size: 1.1rem;
-            }
-
-            .thoughts-form-container {
-                padding: 2rem;
-            }
-
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-
-            .thoughts-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .thoughts-section {
-                padding: 2rem 1rem;
-            }
-
-            .thoughts-intro h2 {
-                font-size: 1.8rem;
-            }
-
-            .thoughts-form-container {
-                padding: 1.5rem;
-            }
-
-            .submit-btn {
-                padding: 0.8rem 1.5rem;
-                font-size: 1rem;
-            }
-        }
-
-        /* Language Switcher Styles */
+/* Language Switcher Styles */
 .language-switcher {
     position: fixed;
     bottom: 20px;
