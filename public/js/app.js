@@ -2114,6 +2114,140 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
+// Thoughts Form Functionality
+function initializeThoughtsForm() {
+    const form = document.getElementById('thoughts-form');
+    const anonymousToggle = document.getElementById('anonymous-toggle');
+    const contactFields = document.getElementById('contact-fields');
+    const submitBtn = document.getElementById('submit-btn');
+    const formMessage = document.getElementById('form-message');
+
+    // Handle anonymous toggle
+    anonymousToggle.addEventListener('change', function() {
+        if (this.checked) {
+            contactFields.style.display = 'none';
+            // Clear the fields when going anonymous
+            document.getElementById('user-name').value = '';
+            document.getElementById('user-contact').value = '';
+        } else {
+            contactFields.style.display = 'grid';
+        }
+    });
+
+    // Handle form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const thoughtData = {
+            name: formData.get('name'),
+            contact_no: formData.get('contact'),
+            thought: formData.get('thought'),
+            language: currentLanguage,
+            is_anonymous: anonymousToggle.checked
+        };
+
+        // Show loading state
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+
+        try {
+            const response = await fetch('/api/user-thoughts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(thoughtData)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showFormMessage('Thank you for sharing your thoughts! Your feedback is valuable to us.', 'success');
+                form.reset();
+                contactFields.style.display = 'grid';
+                anonymousToggle.checked = false;
+                
+                // Reload recent thoughts
+                loadRecentThoughts();
+            } else {
+                showFormMessage(result.error || 'Failed to submit your thoughts. Please try again.', 'error');
+            }
+        } catch (error) {
+            console.error('Error submitting thought:', error);
+            showFormMessage('Something went wrong. Please try again later.', 'error');
+        } finally {
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+        }
+    });
+}
+
+// Show form message
+function showFormMessage(message, type) {
+    const messageEl = document.getElementById('form-message');
+    messageEl.textContent = message;
+    messageEl.className = `form-message ${type} show`;
+    
+    // Hide message after 5 seconds
+    setTimeout(() => {
+        messageEl.classList.remove('show');
+    }, 5000);
+}
+
+// Load recent thoughts
+async function loadRecentThoughts() {
+    try {
+        const response = await fetch('/api/user-thoughts');
+        const result = await response.json();
+        
+        if (result.data && result.data.length > 0) {
+            displayRecentThoughts(result.data.slice(0, 6)); // Show only latest 6
+        }
+    } catch (error) {
+        console.error('Error loading recent thoughts:', error);
+    }
+}
+
+// Display recent thoughts
+function displayRecentThoughts(thoughts) {
+    const thoughtsGrid = document.getElementById('thoughts-grid');
+    
+    if (thoughts.length === 0) {
+        thoughtsGrid.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1/-1;">No thoughts shared yet. Be the first to share your experience!</p>';
+        return;
+    }
+    
+    thoughtsGrid.innerHTML = thoughts.map(thought => {
+        const date = new Date(thought.created_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        const author = thought.is_anonymous ? 
+            '<span class="anonymous-badge">Anonymous</span>' : 
+            `<span class="thought-author">${thought.name || 'Community Member'}</span>`;
+        
+        return `
+            <div class="thought-card">
+                <div class="thought-content">"${escapeHtml(thought.thought)}"</div>
+                <div class="thought-meta">
+                    <div>${author}</div>
+                    <div class="thought-date">${date}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Initialize everything when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     // Load hero content
@@ -2133,6 +2267,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load products
     loadProducts();
+    
+    // Initialize thoughts form
+    initializeThoughtsForm();
+    
+    // Load recent thoughts
+    loadRecentThoughts();
 });
 
 // Update language switcher when language changes

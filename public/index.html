@@ -239,6 +239,55 @@
         </div>
     </section>
 
+    <!-- Share Your Thoughts Section -->
+    <section class="thoughts-section">
+        <div class="thoughts-container">
+            <div class="thoughts-intro">
+                <h2>Share Your Thoughts</h2>
+                <p>We value your feedback and suggestions! Your thoughts help us improve our services and better serve our community.</p>
+                <p>Feel free to share your experience, ideas, or any feedback you may have.</p>
+            </div>
+
+            <div class="thoughts-form-container">
+                <form id="thoughts-form">
+                    <div class="form-message" id="form-message"></div>
+                    
+                    <div class="anonymous-toggle">
+                        <input type="checkbox" id="anonymous-toggle" name="anonymous">
+                        <label for="anonymous-toggle">Submit anonymously (your name and contact will not be saved)</label>
+                    </div>
+
+                    <div class="form-row" id="contact-fields">
+                        <div class="form-group">
+                            <label for="user-name">Your Name (Optional)</label>
+                            <input type="text" id="user-name" name="name" class="form-input" placeholder="Enter your name">
+                        </div>
+                        <div class="form-group">
+                            <label for="user-contact">Contact Number (Optional)</label>
+                            <input type="tel" id="user-contact" name="contact" class="form-input" placeholder="Enter your contact number">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="user-thought">Your Thoughts *</label>
+                        <textarea id="user-thought" name="thought" class="form-textarea" placeholder="Share your thoughts, feedback, suggestions, or experience with us..." required></textarea>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submit-btn">
+                        Share Your Thoughts
+                    </button>
+                </form>
+            </div>
+
+            <div class="recent-thoughts" id="recent-thoughts">
+                <h3>Recent Community Thoughts</h3>
+                <div class="thoughts-grid" id="thoughts-grid">
+                    <!-- Recent thoughts will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Eco-Friendly Products Section -->
     <section class="eco-products-section">
         <h2 class="section-title">Our Eco-Friendly Products</h2>

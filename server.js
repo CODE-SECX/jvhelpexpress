@@ -85,6 +85,145 @@ app.get('/api/hero-content', async (req, res) => {
     }
 });
 
+// Activities content API
+app.get('/api/activities-content', async (req, res) => {
+    try {
+        const lang = req.query.lang || 'en';
+        
+        const { data, error } = await supabase
+            .from('activities')
+            .select('*')
+            .eq('is_active', true)
+            .order('display_order');
+
+        if (error) {
+            console.error('Supabase error:', error);
+            return res.status(500).json({ 
+                error: 'Failed to fetch activities content',
+                data: []
+            });
+        }
+
+        // Transform data to include language-specific content
+        const transformedData = data.map(item => ({
+            id: item.id,
+            title: item[`title_${lang}`] || item.title_en,
+            description: item[`description_${lang}`] || item.description_en,
+            icon_url: item.icon_url,
+            category: item.category,
+            display_order: item.display_order
+        }));
+
+        res.json({
+            data: transformedData,
+            language: lang,
+            total: transformedData.length
+        });
+    } catch (err) {
+        console.error('Server error:', err);
+        res.status(500).json({ 
+            error: 'Internal server error',
+            data: []
+        });
+    }
+});
+
+// Activities gallery API
+app.get('/api/activities-gallery', async (req, res) => {
+    try {
+        const lang = req.query.lang || 'en';
+        
+        const { data, error } = await supabase
+            .from('activities_gallery')
+            .select('*')
+            .eq('is_active', true)
+            .order('display_order');
+
+        if (error) {
+            console.error('Supabase error:', error);
+            return res.status(500).json({ 
+                error: 'Failed to fetch activities gallery',
+                data: []
+            });
+        }
+
+        // Transform data and include all images
+        const transformedData = data.map(item => {
+            const images = [item.image];
+            
+            // Add additional images if they exist
+            for (let i = 1; i <= 5; i++) {
+                if (item[`image_lm_${i}`]) images.push(item[`image_lm_${i}`]);
+                if (item[`image_LM_${i}`]) images.push(item[`image_LM_${i}`]);
+            }
+            
+            return {
+                id: item.id,
+                title_en: item.title_en,
+                title_hi: item.title_hi,
+                title_gu: item.title_gu,
+                description_en: item.description_en,
+                description_hi: item.description_hi,
+                description_gu: item.description_gu,
+                category_en: item.category_en,
+                category_hi: item.category_hi,
+                category_gu: item.category_gu,
+                quote_en: item.quote_en,
+                quote_hi: item.quote_hi,
+                quote_gu: item.quote_gu,
+                image: item.image,
+                images: images,
+                date: item.date,
+                display_order: item.display_order,
+                created_at: item.created_at,
+                stats: {
+                    'Beneficiaries': getStatNumber(item.display_order),
+                    [getSecondStatLabel(item.display_order)]: getSecondStatNumber(item.display_order),
+                    [getThirdStatLabel(item.display_order)]: getThirdStatNumber(item.display_order)
+                }
+            };
+        });
+
+        res.json({
+            data: transformedData,
+            language: lang,
+            total: transformedData.length
+        });
+    } catch (err) {
+        console.error('Server error:', err);
+        res.status(500).json({ 
+            error: 'Internal server error',
+            data: []
+        });
+    }
+});
+
+// Helper functions for gallery stats
+function getStatNumber(order) {
+    const stats = ['500+', '300+', '50+', '1000+', '200+', '100+'];
+    return stats[order - 1] || '100+';
+}
+
+function getSecondStatNumber(order) {
+    const stats = ['15', '15', '24/7', '365', '5', '100+'];
+    return stats[order - 1] || '10';
+}
+
+function getSecondStatLabel(order) {
+    const labels = ['Locations', 'Schools', 'Response', 'Days', 'Festivals', 'Locations'];
+    return labels[order - 1] || 'Locations';
+}
+
+function getThirdStatNumber(order) {
+    const stats = ['95%', '95%', '90%', '100%', '100%', '85%'];
+    return stats[order - 1] || '90%';
+}
+
+function getThirdStatLabel(order) {
+    const labels = ['Success Rate', 'Success Rate', 'Recovery Rate', 'Organic Feed', 'Satisfaction', 'Survival Rate'];
+    return labels[order - 1] || 'Success Rate';
+}
+
 // Generic multilingual content API
 app.get('/api/content/:table', async (req, res) => {
     try {
@@ -138,6 +277,79 @@ app.get('/api/content/:table', async (req, res) => {
 });
 
 
+
+// User thoughts API endpoints
+app.get('/api/user-thoughts', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('user_thoughts')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Supabase error:', error);
+            return res.status(500).json({ 
+                error: 'Failed to fetch thoughts',
+                data: []
+            });
+        }
+
+        res.json({
+            data: data || [],
+            total: data ? data.length : 0
+        });
+    } catch (err) {
+        console.error('Server error:', err);
+        res.status(500).json({ 
+            error: 'Internal server error',
+            data: []
+        });
+    }
+});
+
+app.post('/api/user-thoughts', async (req, res) => {
+    try {
+        const { name, contact_no, thought, language, is_anonymous } = req.body;
+
+        if (!thought || thought.trim() === '') {
+            return res.status(400).json({ 
+                error: 'Thought content is required' 
+            });
+        }
+
+        const thoughtData = {
+            name: is_anonymous ? null : (name || null),
+            contact_no: is_anonymous ? null : (contact_no || null),
+            thought: thought.trim(),
+            language: language || 'en',
+            is_anonymous: is_anonymous || false
+        };
+
+        const { data, error } = await supabase
+            .from('user_thoughts')
+            .insert([thoughtData])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Supabase error:', error);
+            return res.status(500).json({ 
+                error: 'Failed to save thought' 
+            });
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Thank you for sharing your thoughts!',
+            data: data
+        });
+    } catch (err) {
+        console.error('Server error:', err);
+        res.status(500).json({ 
+            error: 'Internal server error' 
+        });
+    }
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
