@@ -1660,8 +1660,8 @@ dotlottie-player {
     }
 
     .parrot-animation {
-        width: 120px;
-        height: 120px;
+        width: 150px;
+        height: 150px;
     }
 
     .parrot-speech-bubble {
@@ -1687,8 +1687,8 @@ dotlottie-player {
 
 @media (max-width: 320px) {
     .parrot-animation {
-        width: 100px;
-        height: 100px;
+        width: 120px;
+        height: 120px;
     }
 
     .parrot-speech-bubble {
