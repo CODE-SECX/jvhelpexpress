@@ -1272,6 +1272,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load recent thoughts
     loadRecentThoughts();
+
+    // Initialize parrot interactions
+    initializeParrotInteractions();
 });
 
 function initializeThoughtsForm() {
@@ -1279,19 +1282,48 @@ function initializeThoughtsForm() {
     const anonymousToggle = document.getElementById('anonymous-toggle');
     const contactFields = document.getElementById('contact-fields');
     const formMessage = document.getElementById('form-message');
+    const thoughtTextarea = document.getElementById('user-thought');
+    const charCounter = document.getElementById('char-counter');
 
     if (!thoughtsForm) return;
 
-    // Handle anonymous toggle
+    // Handle character counter
+    if (thoughtTextarea && charCounter) {
+        thoughtTextarea.addEventListener('input', function() {
+            const currentLength = this.value.length;
+            const maxLength = 1000;
+            charCounter.textContent = `${currentLength}/${maxLength} characters`;
+            
+            // Change color based on character count
+            if (currentLength > maxLength * 0.9) {
+                charCounter.style.color = '#e74c3c';
+            } else if (currentLength > maxLength * 0.7) {
+                charCounter.style.color = '#f39c12';
+            } else {
+                charCounter.style.color = '#6c757d';
+            }
+        });
+    }
+
+    // Handle anonymous toggle with animation
     if (anonymousToggle && contactFields) {
         anonymousToggle.addEventListener('change', function() {
             if (this.checked) {
-                contactFields.style.display = 'none';
+                contactFields.style.opacity = '0.5';
+                contactFields.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    contactFields.style.display = 'none';
+                }, 200);
+                
                 // Clear the fields when going anonymous
                 document.getElementById('user-name').value = '';
                 document.getElementById('user-contact').value = '';
             } else {
                 contactFields.style.display = 'flex';
+                setTimeout(() => {
+                    contactFields.style.opacity = '1';
+                    contactFields.style.transform = 'scale(1)';
+                }, 10);
             }
         });
     }
@@ -1426,6 +1458,126 @@ function createThoughtCard(thought) {
             </div>
         </div>
     `;
+}
+
+// Parrot interaction functionality
+function initializeParrotInteractions() {
+    const parrotAnimation = document.querySelector('.parrot-animation');
+    const parrotMessage = document.getElementById('parrot-message');
+    const thoughtsForm = document.getElementById('thoughts-form');
+    const thoughtTextarea = document.getElementById('user-thought');
+
+    if (!parrotAnimation || !parrotMessage) return;
+
+    // Parrot messages for different interactions
+    const parrotMessages = {
+        greeting: [
+            "Squawk! Tell us what you think! I love hearing from friends!",
+            "Hello there! Got something to share? I'm all ears... er, feathers!",
+            "Tweet! Your thoughts make our community stronger! Share away!"
+        ],
+        typing: [
+            "Squawk! I can see you're thinking hard! Keep writing!",
+            "Great! Tell me more! I love hearing stories!",
+            "Tweet tweet! Your words matter to us!"
+        ],
+        success: [
+            "Squawk! Thank you for sharing! You're awesome!",
+            "Tweet! Your thoughts have been heard loud and clear!",
+            "Wonderful! Thanks for making our community better!"
+        ],
+        encouragement: [
+            "Don't be shy! We really want to hear from you!",
+            "Squawk! Every thought counts, big or small!",
+            "Tweet! Your experience matters to us!"
+        ]
+    };
+
+    let messageIndex = 0;
+    let messageType = 'greeting';
+
+    // Function to update parrot message
+    function updateParrotMessage(type = null) {
+        if (type) messageType = type;
+        
+        const messages = parrotMessages[messageType];
+        const message = messages[Math.floor(Math.random() * messages.length)];
+        
+        if (parrotMessage) {
+            parrotMessage.style.opacity = '0';
+            setTimeout(() => {
+                parrotMessage.textContent = message;
+                parrotMessage.style.opacity = '1';
+            }, 300);
+        }
+    }
+
+    // Parrot click interaction
+    if (parrotAnimation) {
+        parrotAnimation.addEventListener('click', function() {
+            this.style.transform = 'scale(1.1) rotate(10deg)';
+            setTimeout(() => {
+                this.style.transform = '';
+            }, 200);
+            
+            updateParrotMessage('encouragement');
+        });
+    }
+
+    // Form interaction monitoring
+    if (thoughtTextarea) {
+        let typingTimer;
+        
+        thoughtTextarea.addEventListener('focus', function() {
+            updateParrotMessage('encouragement');
+        });
+
+        thoughtTextarea.addEventListener('input', function() {
+            clearTimeout(typingTimer);
+            
+            if (this.value.length > 10) {
+                updateParrotMessage('typing');
+            }
+            
+            // Change message after user stops typing for 3 seconds
+            typingTimer = setTimeout(() => {
+                if (this.value.length > 20) {
+                    updateParrotMessage('typing');
+                }
+            }, 3000);
+        });
+    }
+
+    // Form submission success
+    if (thoughtsForm) {
+        const originalSubmitHandler = thoughtsForm.onsubmit;
+        
+        thoughtsForm.addEventListener('submit', async function(e) {
+            // Let the original handler run
+            if (originalSubmitHandler) {
+                const result = await originalSubmitHandler.call(this, e);
+                
+                // If submission was successful, update parrot message
+                setTimeout(() => {
+                    updateParrotMessage('success');
+                }, 1000);
+                
+                return result;
+            }
+        });
+    }
+
+    // Rotate through greeting messages every 8 seconds
+    setInterval(() => {
+        if (messageType === 'greeting') {
+            updateParrotMessage('greeting');
+        }
+    }, 8000);
+
+    // Initialize with a random greeting
+    setTimeout(() => {
+        updateParrotMessage('greeting');
+    }, 1000);
 }
 
 // Language Switcher JavaScript
