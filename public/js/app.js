@@ -96,8 +96,6 @@ function updateAllContentSections(language) {
     // Update static translations using existing translation system
     const existingTranslations = {
         'hi': {
-            'hero-title': 'जेवी_हेल्प',
-            'hero-slogan': 'हील हेल्प प्रोटेक्ट',
             'section-title': 'श्री जयवीर जीवदया ग्रुप द्वारा परोपकारी गतिविधियां',
             'winter-care': 'सर्दी की देखभाल',
             'winter-desc': 'सर्दी के मौसम में वंचित बच्चों को स्वेटर और कंबल का वितरण।',
@@ -117,8 +115,6 @@ function updateAllContentSections(language) {
             'year-round-desc': 'पशु कल्याण को बढ़ावा देने के लिए पक्षीघरों, पक्षी फीडर और पानी के कटोरे का 365 दिन वितरण।',
         },
         'gu': {
-            'hero-title': 'જેવી_હેલ્પ',
-            'hero-slogan': 'હીલ હેલ્પ પ્રોટેક્ટ',
             'section-title': 'શ્રી જયવીર જીવદયા ગ્રુપ દ્વારા પરોપકારી પ્રવૃત્તિઓ',
             'winter-care': 'શિયાળાની સંભાળ',
             'winter-desc': 'શિયાળાની ઋતુ દરમિયાન વંચિત બાળકોને સ્વેટર અને ધાબળાનું વિતરણ.',
