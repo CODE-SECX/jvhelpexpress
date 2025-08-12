@@ -18,18 +18,13 @@ async function loadHeroContent(language = "en") {
 
         if (data.error) {
             console.warn("Using fallback content:", data.fallback);
-            // Use fallback content if there's an error
-            updateHeroContent(data.fallback.title, data.fallback.subtitle);
+            updateHeroContent(data.fallback?.title || "JV HELP", data.fallback?.subtitle || "Heal Help Protect");
         } else {
-            // Cache all language data
             contentCache.hero = data.all_languages;
-
-            // Use language-specific data from Supabase
             updateHeroContent(data.title, data.subtitle);
         }
     } catch (error) {
         console.error("Failed to load hero content:", error);
-        // Use default fallback
         updateHeroContent("JV HELP", "Heal Help Protect");
     }
 }
@@ -1011,7 +1006,7 @@ function updateEnhancedModalCarousel() {
     const indicators = document.querySelectorAll(".gallery-modal-carousel-dot");
 
     if (carouselContainer) {
-        carouselContainer.style.transform = `translateX(-${currentModalSlide * 100}%)`; // Corrected from 20% to 100% for full slide width
+        carouselContainer.style.transform = `translateX(-${currentModalSlide * 100}%)`;
     }
 
     // Update indicators
@@ -1019,7 +1014,6 @@ function updateEnhancedModalCarousel() {
         indicator.classList.toggle("active", index === currentModalSlide);
     });
 }
-
 
 // Go to specific enhanced modal slide
 function goToEnhancedModalSlide(slideIndex) {
@@ -2048,11 +2042,9 @@ function checkAllBadges() {
         document
             .querySelector(".badges-container")
             .classList.add("all-complete");
-        const chirpySpeech = document.querySelector(
-            `[data-animal="bird-letter"] .speech-bubble p`,
-        );
-        chirpySpeech.textContent =
-            "Tweet! You've earned all your helper badges! You're a true animal friend!";
+
+        // Update Chirpy's message
+        updateAnimalState("bird-letter", 100, 2);
     }
 }
 
@@ -2097,14 +2089,18 @@ function updateGalleryLanguage(language) {
 // Modal functionality for products
 window.openModal = function (productId) {
     const modal = document.getElementById(productId + "Modal");
-    modal.style.display = "block";
-    document.body.style.overflow = "hidden";
+    if (modal) {
+        modal.style.display = "block";
+        document.body.style.overflow = "hidden";
+    }
 };
 
 window.closeModal = function (productId) {
     const modal = document.getElementById(productId + "Modal");
-    modal.style.display = "none";
-    document.body.style.overflow = "auto";
+    if (modal) {
+        modal.style.display = "none";
+        document.body.style.overflow = "auto";
+    }
 };
 
 // Close modal when clicking outside
