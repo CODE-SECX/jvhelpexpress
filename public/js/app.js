@@ -1265,6 +1265,169 @@ window.selectColor = function (element) {
     element.classList.add('selected');
 }
 
+// Share Your Thoughts functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize thoughts form
+    initializeThoughtsForm();
+    
+    // Load recent thoughts
+    loadRecentThoughts();
+});
+
+function initializeThoughtsForm() {
+    const thoughtsForm = document.getElementById('thoughts-form');
+    const anonymousToggle = document.getElementById('anonymous-toggle');
+    const contactFields = document.getElementById('contact-fields');
+    const formMessage = document.getElementById('form-message');
+
+    if (!thoughtsForm) return;
+
+    // Handle anonymous toggle
+    if (anonymousToggle && contactFields) {
+        anonymousToggle.addEventListener('change', function() {
+            if (this.checked) {
+                contactFields.style.display = 'none';
+                // Clear the fields when going anonymous
+                document.getElementById('user-name').value = '';
+                document.getElementById('user-contact').value = '';
+            } else {
+                contactFields.style.display = 'flex';
+            }
+        });
+    }
+
+    // Handle form submission
+    thoughtsForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('submit-btn');
+        const originalText = submitBtn.textContent;
+        
+        try {
+            // Show loading state
+            submitBtn.textContent = 'Submitting...';
+            submitBtn.disabled = true;
+            
+            // Get form data
+            const formData = new FormData(this);
+            const thoughtData = {
+                name: formData.get('name'),
+                contact: formData.get('contact'),
+                thought: formData.get('thought'),
+                language: currentLanguage || 'en',
+                anonymous: formData.get('anonymous') === 'on'
+            };
+
+            // Submit to API
+            const response = await fetch('/api/user-thoughts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: thoughtData.name,
+                    contact_no: thoughtData.contact,
+                    thought: thoughtData.thought,
+                    language: thoughtData.language,
+                    is_anonymous: thoughtData.anonymous
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                // Show success message
+                showFormMessage('Thank you for sharing your thoughts! Your feedback is valuable to us.', 'success');
+                
+                // Reset form
+                this.reset();
+                
+                // Reset anonymous toggle display
+                if (contactFields) {
+                    contactFields.style.display = 'flex';
+                }
+                
+                // Reload recent thoughts
+                loadRecentThoughts();
+                
+            } else {
+                throw new Error(result.error || 'Failed to submit thought');
+            }
+            
+        } catch (error) {
+            console.error('Error submitting thought:', error);
+            showFormMessage('Failed to submit your thought. Please try again later.', 'error');
+        } finally {
+            // Reset button state
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+    });
+}
+
+function showFormMessage(message, type) {
+    const formMessage = document.getElementById('form-message');
+    if (!formMessage) return;
+    
+    formMessage.textContent = message;
+    formMessage.className = `form-message ${type}`;
+    formMessage.style.display = 'block';
+    
+    // Hide message after 5 seconds
+    setTimeout(() => {
+        formMessage.style.display = 'none';
+    }, 5000);
+}
+
+async function loadRecentThoughts() {
+    const thoughtsGrid = document.getElementById('thoughts-grid');
+    if (!thoughtsGrid) return;
+    
+    try {
+        const response = await fetch('/api/user-thoughts');
+        const result = await response.json();
+        
+        if (response.ok && result.data) {
+            displayThoughts(result.data.slice(0, 6)); // Show only 6 most recent
+        } else {
+            throw new Error(result.error || 'Failed to load thoughts');
+        }
+        
+    } catch (error) {
+        console.error('Error loading thoughts:', error);
+        thoughtsGrid.innerHTML = '<div class="error-message">Failed to load recent thoughts. Please try again later.</div>';
+    }
+}
+
+function displayThoughts(thoughts) {
+    const thoughtsGrid = document.getElementById('thoughts-grid');
+    if (!thoughtsGrid) return;
+    
+    if (thoughts.length === 0) {
+        thoughtsGrid.innerHTML = '<div class="no-thoughts">No thoughts shared yet. Be the first to share your experience!</div>';
+        return;
+    }
+    
+    thoughtsGrid.innerHTML = thoughts.map(thought => createThoughtCard(thought)).join('');
+}
+
+function createThoughtCard(thought) {
+    const date = new Date(thought.created_at).toLocaleDateString();
+    const displayName = thought.is_anonymous || !thought.name ? 'Anonymous' : thought.name;
+    
+    return `
+        <div class="thought-card">
+            <div class="thought-content">
+                <p>"${thought.thought}"</p>
+            </div>
+            <div class="thought-meta">
+                <span class="thought-author">${displayName}</span>
+                <span class="thought-date">${date}</span>
+            </div>
+        </div>
+    `;
+}
+
 // Language Switcher JavaScript
 document.addEventListener('DOMContentLoaded', function () {
     // Language dictionaries
