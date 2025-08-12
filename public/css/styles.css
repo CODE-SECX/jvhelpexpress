@@ -864,19 +864,6 @@ dotlottie-player {
             margin-bottom: 1rem;
         }
 
-        .bird-phone-icon {
-            width: 45px;
-            height: 45px;
-            transition: all 0.3s ease;
-            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
-            animation: gentle-float 3s ease-in-out infinite;
-        }
-
-        .bird-phone-icon:hover {
-            transform: scale(1.1) rotate(5deg);
-            filter: drop-shadow(0 4px 12px rgba(76, 175, 80, 0.4));
-        }
-
         @keyframes gentle-float {
             0%, 100% {
                 transform: translateY(0px);
@@ -887,7 +874,7 @@ dotlottie-player {
         }
 
         .contact-item {
-            margin-bottom: 1rem;
+            margin: 0;
         }
 
         .whatsapp-link {
@@ -935,6 +922,7 @@ dotlottie-player {
             display: flex;
             gap: 1rem;
             flex-wrap: wrap;
+            margin-top: 14px;
         }
 
         .social-link {
@@ -1048,10 +1036,6 @@ dotlottie-player {
                 justify-content: center;
             }
 
-            .bird-phone-icon {
-                width: 40px;
-                height: 40px;
-            }
         }
 
         @media (max-width: 480px) {
@@ -1090,11 +1074,6 @@ dotlottie-player {
             .footer-copyright {
                 font-size: 0.8rem;
                 padding: 0 1rem;
-            }
-
-            .bird-phone-icon {
-                width: 35px;
-                height: 35px;
             }
         }
 
