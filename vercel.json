@@ -12,7 +12,15 @@
   ],
   "routes": [
     {
-      "src": "/admin/(.*)",
+      "src": "/admin",
+      "dest": "/public/admin/index.html"
+    },
+    {
+      "src": "/admin/dashboard",
+      "dest": "/public/admin/dashboard.html"
+    },
+    {
+      "src": "/admin/(.*\\.(?:js|css|html))",
       "dest": "/public/admin/$1"
     },
     {
