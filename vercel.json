@@ -20,6 +20,14 @@
       "dest": "/public/admin/admin-auth.js"
     },
     {
+      "src": "/admin/dashboard",
+      "dest": "/public/admin/dashboard.html"
+    },
+    {
+      "src": "/admin/dashboard.html",
+      "dest": "/public/admin/dashboard.html"
+    },
+    {
       "src": "/admin/(.*\\.(js|css|html))",
       "dest": "/public/admin/$1"
     },
