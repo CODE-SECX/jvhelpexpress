@@ -72,10 +72,7 @@ function switchLanguageGlobally(newLanguage) {
     // Update other content sections
     updateAllContentSections(newLanguage);
 
-    // Update gallery language
-    updateGalleryLanguage(newLanguage);
-
-    // Update language switcher display
+    // Update language display
     updateLanguageDisplay(newLanguage);
 
     // Load products in new language

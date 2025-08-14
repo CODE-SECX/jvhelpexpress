@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok && result.success) {
                 localStorage.setItem('admin_token', result.token);
                 localStorage.setItem('admin_expires', result.expires_at);
+                localStorage.setItem('admin_user', JSON.stringify(result.admin));
                 
                 showMessage('Login successful! Redirecting...', 'success');
                 
@@ -84,4 +85,5 @@ function isTokenExpired() {
 if (isTokenExpired()) {
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_expires');
+    localStorage.removeItem('admin_user');
 }
