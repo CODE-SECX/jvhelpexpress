@@ -846,9 +846,19 @@ dotlottie-player {
             font-weight: 600;
             margin-bottom: 1rem;
             color: #ffffff;
-            border-bottom: 2px solid #4caf50;
             padding-bottom: 0.5rem;
+            position: relative;
             display: inline-block;
+        }
+        
+        .footer-section-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #4caf50;
         }
 
         .footer-contact {
@@ -1020,6 +1030,28 @@ dotlottie-player {
 
             .footer-title {
                 font-size: 1.8rem;
+            }
+
+            .footer-social {
+                text-align: center;
+            }
+
+            .footer-section-title {
+                position: relative;
+                display: inline-block;
+                text-align: center;
+            }
+            
+            .footer-section-title::after {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 100%;
+                max-width: fit-content;
+                height: 2px;
+                background: #4caf50;
             }
 
             .social-links {
