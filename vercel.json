@@ -12,8 +12,12 @@
   ],
   "routes": [
     {
-      "src": "/admin-([^/]+\\.(js|css))",
-      "dest": "/public/admin/$1"
+      "src": "/admin-styles.css",
+      "dest": "/public/admin/admin-styles.css"
+    },
+    {
+      "src": "/admin-auth.js",
+      "dest": "/public/admin/admin-auth.js"
     },
     {
       "src": "/admin/(.*\\.(js|css|html))",
